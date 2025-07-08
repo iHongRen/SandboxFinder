@@ -2,6 +2,7 @@ import { AbilityConstant, common, ConfigurationConstant, UIAbility, Want } from 
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { fileIo , Filter, ListFileOptions } from '@kit.CoreFileKit';
+import { SandboxFinder } from 'sandboxfinder';
 
 const DOMAIN = 0x0000;
 
@@ -11,16 +12,17 @@ export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
+    SandboxFinder.start(this.context, 7777)
 
-    console.error('cacheDir:' + this.context.cacheDir)
-    console.error('filesDir:' + this.context.filesDir)
-    console.error('preferencesDir:' + this.context.preferencesDir)
-    console.error('databaseDir:' + this.context.databaseDir)
-    console.error('tempDir:' + this.context.tempDir)
-    console.error('bundleCodeDir:' + this.context.bundleCodeDir)
-    console.error('resourceDir:' + this.context.resourceDir)
-
-    this.getListFile(this.context)
+    // console.error('cacheDir:' + this.context.cacheDir)
+    // console.error('filesDir:' + this.context.filesDir)
+    // console.error('preferencesDir:' + this.context.preferencesDir)
+    // console.error('databaseDir:' + this.context.databaseDir)
+    // console.error('tempDir:' + this.context.tempDir)
+    // console.error('bundleCodeDir:' + this.context.bundleCodeDir)
+    // console.error('resourceDir:' + this.context.resourceDir)
+    //
+    // this.getListFile(this.context)
   }
 
    getListFile(context: common.UIAbilityContext): void {

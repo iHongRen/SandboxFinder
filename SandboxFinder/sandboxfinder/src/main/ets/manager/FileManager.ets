@@ -36,7 +36,7 @@ export class FileManager {
   private async initServerDir(): Promise<void> {
     try {
       await this.ensureDirectoryExists(this.serverPath)
-      await this.createFinder()
+      // await this.createFinder()
     } catch (error) {
       console.error('初始化根目录失败:', error)
     }

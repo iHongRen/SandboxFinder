@@ -11,22 +11,22 @@ import { AbilityLifecycleCallback, Context } from "@kit.AbilityKit";
 
 
 export class SandboxFinder {
-  static instance: SandboxFinder
+  private  static instance: SandboxFinder
 
   private server: HttpServer;
   private fileManager: FileManager
   private requestHandler?: RequestHandler
   private port: number
   private context: Context
-  onFileChanged?: () => void
-  lifecycleId: number = 0
+  private onFileChanged?: () => void
+  private lifecycleId: number = 0
 
   static start(context: Context, port:number=7777) {
     SandboxFinder.instance = new SandboxFinder(context, port)
     SandboxFinder.instance.start()
   }
 
-  constructor(context: Context, port:number) {
+  private constructor(context: Context, port:number) {
     this.context = context
     this.port = port
     this.fileManager = new FileManager(context)
@@ -34,16 +34,16 @@ export class SandboxFinder {
     this.onLife()
   }
 
-  onLife() {
+  private onLife() {
    const lifecycleCallback: AbilityLifecycleCallback = {
       onAbilityCreate(ability) {},
       onWindowStageCreate(ability, windowStage) {
-        this.start()
+        SandboxFinder.instance.start()
       },
       onWindowStageActive(ability, windowStage) {},
       onWindowStageInactive(ability, windowStage) {},
       onWindowStageDestroy(ability, windowStage) {
-        this.stop()
+        SandboxFinder.instance.stop()
       },
       onAbilityDestroy(ability) {},
       onAbilityForeground(ability) {},
@@ -57,7 +57,7 @@ export class SandboxFinder {
     }
   }
 
-  offLife() {
+  private offLife() {
     const applicationContext = this.context.getApplicationContext();
     try {
       applicationContext.off('abilityLifecycle', this.lifecycleId, (error, data) => {});
@@ -65,7 +65,7 @@ export class SandboxFinder {
     }
   }
 
-  async handleRequest(request: Uint8Array): Promise<string | ArrayBuffer> {
+  private async handleRequest(request: Uint8Array): Promise<string | ArrayBuffer> {
     if (!this.requestHandler) {
       return 'Server not ready';
     }
@@ -73,7 +73,7 @@ export class SandboxFinder {
   }
 
   // 启动服务器
-  public async start() {
+  private async start() {
     const serverInfo = await this.server.startServer(this.port);
     if (serverInfo) {
       // 创建请求处理器
@@ -86,7 +86,7 @@ export class SandboxFinder {
   }
 
   // 停止服务器
-  public async stop(): Promise<void> {
+  private async stop(): Promise<void> {
     await this.server.stopServer();
   }
 }

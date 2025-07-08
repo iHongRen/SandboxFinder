@@ -1,1 +1,1 @@
-export { MainPage } from './src/main/ets/components/MainPage';
+export { SandboxFinder } from './src/main/ets/SandboxFinder';
