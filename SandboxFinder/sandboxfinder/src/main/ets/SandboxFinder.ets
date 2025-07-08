@@ -7,62 +7,32 @@
 import { FileManager } from "./manager/FileManager";
 import { HttpServer } from "./server/HttpServer";
 import { RequestHandler } from "./server/RequestHandler";
-import { AbilityLifecycleCallback, Context } from "@kit.AbilityKit";
+import { Context } from "@kit.AbilityKit";
 
 
 export class SandboxFinder {
-  private  static instance: SandboxFinder
-
+  private static instance: SandboxFinder
   private server: HttpServer;
   private fileManager: FileManager
   private requestHandler?: RequestHandler
   private port: number
   private context: Context
   private onFileChanged?: () => void
-  private lifecycleId: number = 0
 
   static start(context: Context, port:number=7777) {
     SandboxFinder.instance = new SandboxFinder(context, port)
-    SandboxFinder.instance.start()
+    SandboxFinder.instance.startServer()
+  }
+
+  static stop() {
+    SandboxFinder.instance.stopServer()
   }
 
   private constructor(context: Context, port:number) {
     this.context = context
     this.port = port
-    this.fileManager = new FileManager(context)
+    this.fileManager = new FileManager(this.context)
     this.server = new HttpServer((req) => this.handleRequest(req))
-    this.onLife()
-  }
-
-  private onLife() {
-   const lifecycleCallback: AbilityLifecycleCallback = {
-      onAbilityCreate(ability) {},
-      onWindowStageCreate(ability, windowStage) {
-        SandboxFinder.instance.start()
-      },
-      onWindowStageActive(ability, windowStage) {},
-      onWindowStageInactive(ability, windowStage) {},
-      onWindowStageDestroy(ability, windowStage) {
-        SandboxFinder.instance.stop()
-      },
-      onAbilityDestroy(ability) {},
-      onAbilityForeground(ability) {},
-      onAbilityBackground(ability) {},
-      onAbilityContinue(ability) {},
-    }
-    const applicationContext = this.context.getApplicationContext();
-    try {
-      this.lifecycleId = applicationContext.on('abilityLifecycle', lifecycleCallback);
-    } catch (paramError) {
-    }
-  }
-
-  private offLife() {
-    const applicationContext = this.context.getApplicationContext();
-    try {
-      applicationContext.off('abilityLifecycle', this.lifecycleId, (error, data) => {});
-    } catch (paramError) {
-    }
   }
 
   private async handleRequest(request: Uint8Array): Promise<string | ArrayBuffer> {
@@ -73,7 +43,7 @@ export class SandboxFinder {
   }
 
   // 启动服务器
-  private async start() {
+  private async startServer() {
     const serverInfo = await this.server.startServer(this.port);
     if (serverInfo) {
       // 创建请求处理器
@@ -86,7 +56,7 @@ export class SandboxFinder {
   }
 
   // 停止服务器
-  private async stop(): Promise<void> {
+  private async stopServer(): Promise<void> {
     await this.server.stopServer();
   }
 }

@@ -11,6 +11,6 @@ export class FileItem {
   date?: string = ''
   size?: string = ''
   path?: string = ''
-  isDirectory?: boolean = false
+  isFolder?: boolean = false
   url?: string = ''
 }

@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>SandboxFinder</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+        <script src="https://cdn.staticfile.net/sql.js/1.6.2/sql-wasm.min.js"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+        <style>
+            .file-icon {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 40px;
+                height: 40px;
+                border-radius: 8px;
+                color: white;
+            }
+
+            .folder-icon {
+                background-color: #3b82f6;
+            }
+
+            .file-icon-text {
+                background-color: #10b981;
+            }
+
+            .file-icon-image {
+                background-color: #ef4444;
+            }
+
+            .file-icon-video {
+                background-color: #8b5cf6;
+            }
+
+            .file-icon-sqlite {
+                background-color: #f59e0b;
+            }
+
+            .file-icon-other {
+                background-color: #64748b;
+            }
+
+            .preview-container {
+                height: calc(100vh - 180px);
+            }
+
+            .path-breadcrumb {
+                white-space: nowrap;
+                overflow-x: auto;
+            }
+
+            .path-breadcrumb::-webkit-scrollbar {
+                height: 2px;
+            }
+
+            .sidebar {
+                transition: all 0.3s ease;
+            }
+
+            @media (max-width: 768px) {
+                .sidebar {
+                    position: fixed;
+                    left: -300px;
+                    z-index: 50;
+                    height: 100vh;
+                }
+
+                .sidebar.active {
+                    left: 0;
+                }
+            }
+
+            .context-menu {
+                position: absolute;
+                z-index: 100;
+                min-width: 200px;
+            }
+        </style>
+    </head>
+    <body class="bg-gray-50">
+        <div id="app">
+            <div class="flex h-screen overflow-hidden">
+                <!-- Sidebar -->
+                <div class="sidebar bg-white shadow-md w-64 p-2 border-r" :class="{ 'active': showSidebar }">
+                    <div class="flex items-center justify-between p-2">
+                        <h1 class="text-xl font-bold text-gray-800">SandboxFinder</h1>
+                        <button @click="showSidebar = false" class="md:hidden p-1 rounded hover:bg-gray-200">
+                            <i class="fas fa-times text-gray-600"></i>
+                        </button>
+                    </div>
+
+                    <div class="py-2 border-b mb-2">
+                        <div class="flex items-center px-2 py-1 rounded hover:bg-gray-100 cursor-pointer">
+                            <i class="fas fa-desktop mr-2 text-blue-500"></i>
+                            <span>All Files</span>
+                        </div>
+                        <div class="flex items-center px-2 py-1 rounded hover:bg-gray-100 cursor-pointer">
+                            <i class="fas fa-download mr-2 text-green-500"></i>
+                            <span>Downloads</span>
+                        </div>
+                        <div class="flex items-center px-2 py-1 rounded hover:bg-gray-100 cursor-pointer">
+                            <i class="fas fa-images mr-2 text-purple-500"></i>
+                            <span>Pictures</span>
+                        </div>
+                    </div>
+
+                    <div class="p-2">
+                        <div class="text-xs font-semibold text-gray-500 mb-1">STORAGE</div>
+                        <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
+                            <div class="bg-blue-500 h-2 rounded-full" style="width: 65%"></div>
+                        </div>
+                        <div class="text-xs text-gray-600"><span class="font-medium">15.2 GB</span> used of 128 GB</div>
+                    </div>
+                </div>
+
+                <!-- Main Content -->
+                <div class="flex-1 flex flex-col overflow-hidden">
+                    <!-- Top Navigation -->
+                    <div class="bg-white shadow-sm border-b p-2 flex items-center justify-between">
+                        <div class="flex items-center">
+                            <button @click="showSidebar = !showSidebar" class="mr-2 p-2 rounded hover:bg-gray-200 md:hidden">
+                                <i class="fas fa-bars text-gray-600"></i>
+                            </button>
+
+                            <div class="flex items-center space-x-1 text-sm bg-gray-100 rounded px-2 py-1 path-breadcrumb">
+                                <span class="font-medium text-gray-800">Sandbox</span>
+                                <span class="text-gray-500">/</span>
+                                <template v-for="(part, index) in pathParts" :key="index">
+                                    <span
+                                        @click="navigateTo(index)"
+                                        class="cursor-pointer hover:text-blue-500 truncate max-w-xs"
+                                        :class="{ 'text-blue-500 font-medium': index === pathParts.length - 1 }"
+                                    >
+                                        {{ part }}
+                                    </span>
+                                    <span class="text-gray-500" v-if="index < pathParts.length - 1">/</span>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center space-x-2">
+                            <div class="relative">
+                                <input
+                                    type="text"
+                                    v-model="searchQuery"
+                                    placeholder="Search..."
+                                    class="pl-8 pr-4 py-1 border rounded-full text-sm focus:outline-none focus:ring-1 focus:ring-blue-300 focus:border-blue-300"
+                                />
+                                <i class="fas fa-search absolute left-3 top-2 text-gray-400"></i>
+                            </div>
+
+                            <button @click="toggleViewMode" class="p-2 rounded hover:bg-gray-200">
+                                <i class="fas" :class="{ 'fa-th-large': viewMode === 'grid', 'fa-list': viewMode === 'list' }"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Main Area -->
+                    <div class="flex-1 overflow-hidden">
+                        <div class="flex h-full">
+                            <!-- File List -->
+                            <div class="w-1/2 border-r overflow-y-auto p-2 bg-white" v-if="!isPreviewFullscreen">
+                                <div class="flex items-center justify-between mb-2 px-1">
+                                    <h3 class="font-medium text-gray-700">{{ filteredItems.length }} items</h3>
+                                    <div class="flex space-x-1">
+                                        <button @click="createNewFolder" class="p-1 rounded hover:bg-gray-200" title="New Folder">
+                                            <i class="fas fa-folder-plus text-blue-500"></i>
+                                        </button>
+                                        <button @click="uploadFile" class="p-1 rounded hover:bg-gray-200" title="Upload File">
+                                            <i class="fas fa-file-upload text-green-500"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- List View -->
+                                <div v-if="viewMode === 'list'" class="rounded-lg overflow-hidden">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" @click="sortBy('name')">
+                                                    <div class="flex items-center">
+                                                        Name
+                                                        <i class="fas ml-1" :class="sortIcon('name')"></i>
+                                                    </div>
+                                                </th>
+                                                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" @click="sortBy('size')">
+                                                    <div class="flex items-center">
+                                                        Size
+                                                        <i class="fas ml-1" :class="sortIcon('size')"></i>
+                                                    </div>
+                                                </th>
+                                                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" @click="sortBy('modified')">
+                                                    <div class="flex items-center">
+                                                        Modified
+                                                        <i class="fas ml-1" :class="sortIcon('modified')"></i>
+                                                    </div>
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="bg-white divide-y divide-gray-200">
+                                            <tr
+                                                v-for="item in filteredItems"
+                                                :key="item.path"
+                                                @click="selectItem(item)"
+                                                @dblclick="item.isFolder ? enterFolder(item.name) : previewFile(item)"
+                                                @contextmenu.prevent="showContextMenu($event, item)"
+                                                class="hover:bg-blue-50 cursor-pointer"
+                                                :class="{ 'bg-blue-100': selectedItem && selectedItem.path === item.path }"
+                                            >
+                                                <td class="px-4 py-2 whitespace-nowrap">
+                                                    <div class="flex items-center">
+                                                        <div class="file-icon mr-2">
+                                                            <i :class="getFileIcon(item)"></i>
+                                                        </div>
+                                                        <div class="text-sm font-medium text-gray-900 truncate max-w-xs">
+                                                            {{ item.name }}
+                                                            <span v-if="item.isRenaming" class="ml-2 text-blue-500">(renaming...)</span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{{ formatFileSize(item.size) }}</td>
+                                                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{{ formatDate(item.modified) }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <!-- Grid View -->
+                                <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                    <div
+                                        v-for="item in filteredItems"
+                                        :key="item.path"
+                                        @click="selectItem(item)"
+                                        @dblclick="item.isFolder ? enterFolder(item.name) : previewFile(item)"
+                                        @contextmenu.prevent="showContextMenu($event, item)"
+                                        class="rounded-lg p-2 border hover:bg-blue-50 cursor-pointer"
+                                        :class="{ 'bg-blue-100 border-blue-200': selectedItem && selectedItem.path === item.path }"
+                                    >
+                                        <div class="flex flex-col items-center text-center">
+                                            <div class="file-icon mb-2">
+                                                <i :class="getFileIcon(item)"></i>
+                                            </div>
+                                            <div class="text-xs font-medium text-gray-900 truncate w-full">{{ item.name }}</div>
+                                            <div class="text-xs text-gray-500 mt-1">{{ formatFileSize(item.size) }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Preview Panel -->
+                            <div class="flex-1 overflow-y-auto bg-gray-50 p-4" :class="{ 'w-full': isPreviewFullscreen, 'w-1/2': !isPreviewFullscreen }" v-if="selectedItem && !isCreatingFolder">
+                                <div v-if="isPreviewing">
+                                    <div class="flex justify-between items-center mb-4">
+                                        <h3 class="text-lg font-semibold text-gray-800">Preview: {{ selectedItem.name }}</h3>
+                                        <button @click="toggleFullscreen" class="p-1 rounded hover:bg-gray-200">
+                                            <i class="fas" :class="isPreviewFullscreen ? 'fa-compress' : 'fa-expand'"></i>
+                                        </button>
+                                    </div>
+
+                                    <div class="preview-container rounded-lg bg-white shadow border overflow-auto">
+                                        <!-- Text Preview -->
+                                        <div v-if="isTextFile" class="p-4">
+                                            <pre class="whitespace-pre-wrap font-mono text-sm">{{ fileContent }}</pre>
+                                        </div>
+
+                                        <!-- Image Preview -->
+                                        <div v-if="isImageFile" class="flex items-center justify-center h-full">
+                                            <img :src="fileContent" :alt="selectedItem.name" class="max-h-full max-w-full" />
+                                        </div>
+
+                                        <!-- Video Preview -->
+                                        <div v-if="isVideoFile" class="flex items-center justify-center h-full">
+                                            <video controls class="max-h-full max-w-full">
+                                                <source :src="fileContent" :type="'video/' + selectedItem.extension" />
+                                                Your browser does not support the video tag.
+                                            </video>
+                                        </div>
+
+                                        <!-- SQLite Preview -->
+                                        <div v-if="isSQLiteFile" class="p-4">
+                                            <div v-if="sqliteTables.length > 0">
+                                                <div class="flex items-center justify-between mb-4">
+                                                    <div class="flex space-x-2">
+                                                        <button
+                                                            v-for="table in sqliteTables"
+                                                            @click="currentSQLiteTable = table"
+                                                            class="px-3 py-1 rounded text-sm"
+                                                            :class="{ 'bg-blue-500 text-white': currentSQLiteTable === table, 'bg-gray-200 hover:bg-gray-300': currentSQLiteTable !== table }"
+                                                        >
+                                                            {{ table }}
+                                                        </button>
+                                                    </div>
+                                                    <span class="text-sm text-gray-500">{{ sqliteData.length }} rows</span>
+                                                </div>
+
+                                                <div class="overflow-auto">
+                                                    <table class="min-w-full divide-y divide-gray-200">
+                                                        <thead class="bg-gray-50">
+                                                            <tr>
+                                                                <th v-for="column in sqliteColumns" scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                                    {{ column }}
+                                                                </th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody class="bg-white divide-y divide-gray-200">
+                                                            <tr v-for="row in sqliteData" :key="row.id">
+                                                                <td v-for="column in sqliteColumns" class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{{ row[column] || 'NULL' }}</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                            <div v-else class="text-gray-500 text-center py-8">No tables found in this SQLite database.</div>
+                                        </div>
+
+                                        <!-- Unsupported File Type -->
+                                        <div v-if="isUnsupportedFile" class="flex flex-col items-center justify-center h-full text-gray-500 p-8">
+                                            <i class="fas fa-file-exclamation text-4xl mb-4"></i>
+                                            <p class="text-lg">Preview not available for this file type</p>
+                                            <button @click="downloadFile" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                                <i class="fas fa-download mr-2"></i>
+                                                Download File
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-4 flex justify-between items-center">
+                                        <div class="text-sm text-gray-500">
+                                            <p>Size: {{ formatFileSize(selectedItem.size) }}</p>
+                                            <p>Modified: {{ formatDate(selectedItem.modified) }}</p>
+                                            <p>Path: {{ currentPath }}/{{ selectedItem.name }}</p>
+                                        </div>
+
+                                        <div class="flex space-x-2">
+                                            <button @click="downloadFile" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm"><i class="fas fa-download mr-1"></i> Download</button>
+                                            <button @click="renameItem" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm"><i class="fas fa-edit mr-1"></i> Rename</button>
+                                            <button @click="deleteItem" class="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 rounded text-sm"><i class="fas fa-trash mr-1"></i> Delete</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div v-else class="flex flex-col items-center justify-center h-full text-gray-500">
+                                    <i class="fas fa-file-alt text-4xl mb-4"></i>
+                                    <p class="text-lg">Select a file to preview</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Context Menu -->
+            <div
+                v-if="contextMenu.visible"
+                class="context-menu bg-white shadow-lg rounded-md py-1 border transform transition-all"
+                :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
+                @click.stop
+            >
+                <div v-if="contextMenu.item.isFolder" @click="enterFolder(contextMenu.item.name)" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
+                    <i class="fas fa-folder-open mr-2 text-blue-500"></i>
+                    Open
+                </div>
+                <div v-if="!contextMenu.item.isFolder" @click="previewFile(contextMenu.item)" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
+                    <i class="fas fa-eye mr-2 text-purple-500"></i>
+                    Preview
+                </div>
+                <div @click="downloadItem(contextMenu.item)" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
+                    <i class="fas fa-download mr-2 text-green-500"></i>
+                    Download
+                </div>
+                <div @click="initiateRename(contextMenu.item)" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
+                    <i class="fas fa-pencil-alt mr-2 text-yellow-500"></i>
+                    Rename
+                </div>
+                <div @click="showMoveDialog(contextMenu.item)" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
+                    <i class="fas fa-arrows-alt mr-2 text-blue-500"></i>
+                    Move
+                </div>
+                <div class="border-t my-1"></div>
+                <div @click="deleteItem(contextMenu.item)" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center text-red-500">
+                    <i class="fas fa-trash mr-2"></i>
+                    Delete
+                </div>
+            </div>
+
+            <!-- New Folder Dialog -->
+            <div v-if="isCreatingFolder" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-lg shadow-xl p-4 w-96">
+                    <h3 class="text-lg font-semibold mb-4">New Folder</h3>
+                    <input
+                        v-model="newFolderName"
+                        @keyup.enter="confirmCreateFolder"
+                        type="text"
+                        placeholder="Folder name"
+                        class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-1 focus:ring-blue-300"
+                    />
+                    <div class="flex justify-end mt-4 space-x-2">
+                        <button @click="isCreatingFolder = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
+                        <button @click="confirmCreateFolder" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Create</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Move Dialog -->
+            <div v-if="isMovingItem" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-lg shadow-xl p-4 w-96 max-h-[80vh] flex flex-col">
+                    <h3 class="text-lg font-semibold mb-4">Move "{{ itemToMove.name }}"</h3>
+                    <div class="flex-1 overflow-y-auto mb-4 border rounded p-2">
+                        <div class="flex items-center hover:bg-gray-100 p-1 rounded cursor-pointer" @click="moveTargetPath = ''">
+                            <i class="fas fa-home mr-2 text-blue-500"></i>
+                            <span>Root</span>
+                        </div>
+
+                        <div
+                            v-for="folder in allFolders"
+                            :key="folder.path"
+                            class="flex items-center hover:bg-gray-100 p-1 rounded cursor-pointer ml-4"
+                            @click="moveTargetPath = folder.path"
+                            :class="{ 'bg-blue-50': moveTargetPath === folder.path }"
+                        >
+                            <i class="fas fa-folder mr-2 text-yellow-500"></i>
+                            <span>{{ folder.name }}</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-end space-x-2">
+                        <button @click="isMovingItem = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
+                        <button @click="confirmMoveItem" :disabled="!moveTargetPath" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50">Move</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upload Dialog -->
+            <input type="file" ref="fileInput" @change="handleFileUpload" class="hidden" multiple />
+        </div>
+
+        <script>
+            const { createApp, ref, computed, onMounted } = Vue
+
+            createApp({
+                setup() {
+                    // State
+                    const items = ref([])
+                    const selectedItem = ref(null)
+                    const currentPath = ref('/Sandbox')
+                    const viewMode = ref('grid')
+                    const sortField = ref('name')
+                    const sortDirection = ref('asc')
+                    const isPreviewing = ref(false)
+                    const isPreviewFullscreen = ref(false)
+                    const fileContent = ref('')
+                    const searchQuery = ref('')
+                    const newFolderName = ref('')
+                    const isCreatingFolder = ref(false)
+                    const showSidebar = ref(false)
+                    const sqliteTables = ref([])
+                    const sqliteColumns = ref([])
+                    const sqliteData = ref([])
+                    const currentSQLiteTable = ref('')
+                    const contextMenu = ref({
+                        visible: false,
+                        x: 0,
+                        y: 0,
+                        item: null
+                    })
+                    const isMovingItem = ref(false)
+                    const itemToMove = ref(null)
+                    const moveTargetPath = ref('')
+                    const allFolders = ref([])
+
+                    // Mock data initialization
+                    const initMockData = () => {
+                        items.value = [
+                            { name: 'Documents', path: '/Sandbox/Documents', size: 0, isFolder: true, modified: '2023-06-15T09:30:00' },
+                            { name: 'Images', path: '/Sandbox/Images', size: 0, isFolder: true, modified: '2023-06-14T15:45:00' },
+                            { name: 'Videos', path: '/Sandbox/Videos', size: 0, isFolder: true, modified: '2023-06-13T11:20:00' },
+                            { name: 'example.txt', path: '/Sandbox/example.txt', size: 1024, isFolder: false, extension: 'txt', modified: '2023-06-12T14:10:00' },
+                            { name: 'sample.jpg', path: '/Sandbox/sample.jpg', size: 2048000, isFolder: false, extension: 'jpg', modified: '2023-06-11T16:55:00' },
+                            { name: 'demo.mp4', path: '/Sandbox/demo.mp4', size: 40960000, isFolder: false, extension: 'mp4', modified: '2023-06-10T08:05:00' },
+                            { name: 'database.db', path: '/Sandbox/database.db', size: 512000, isFolder: false, extension: 'db', modified: '2023-06-09T13:30:00' },
+                            { name: 'notes.sqlite', path: '/Sandbox/notes.sqlite', size: 256000, isFolder: false, extension: 'sqlite', modified: '2023-05-20T10:15:00' },
+                            { name: 'report.pdf', path: '/Sandbox/report.pdf', size: 1536000, isFolder: false, extension: 'pdf', modified: '2023-05-18T17:40:00' },
+                            { name: 'data.json', path: '/Sandbox/data.json', size: 51200, isFolder: false, extension: 'json', modified: '2023-05-15T12:25:00' }
+                        ]
+
+                        // Populate all folders for move dialog
+                        allFolders.value = items.value.filter(item => item.isFolder)
+                    }
+
+                    // Computed properties
+                    const pathParts = computed(() => {
+                        return currentPath.value.split('/').filter(part => part.trim() !== '')
+                    })
+
+                    const filteredItems = computed(() => {
+                        let result = items.value.filter(item => {
+                            const itemPath = item.path.toLowerCase()
+                            const matchPath = currentPath.value.toLowerCase()
+
+                            // Only show items that are in the current path
+                            return itemPath.startsWith(matchPath) && itemPath.split('/').length === currentPath.value.split('/').length + 1
+                        })
+
+                        // Apply search filter
+                        if (searchQuery.value.trim()) {
+                            const query = searchQuery.value.toLowerCase()
+                            result = result.filter(item => item.name.toLowerCase().includes(query))
+                        }
+
+                        // Apply sorting
+                        result.sort((a, b) => {
+                            // Folders first
+                            if (a.isFolder && !b.isFolder) return -1
+                            if (!a.isFolder && b.isFolder) return 1
+
+                            // Then sort by selected field
+                            let compareValue = 0
+
+                            if (sortField.value === 'name') {
+                                compareValue = a.name.localeCompare(b.name)
+                            } else if (sortField.value === 'size') {
+                                compareValue = a.size - b.size
+                            } else if (sortField.value === 'modified') {
+                                compareValue = new Date(a.modified) - new Date(b.modified)
+                            }
+
+                            return sortDirection.value === 'asc' ? compareValue : -compareValue
+                        })
+
+                        return result
+                    })
+
+                    const isTextFile = computed(() => {
+                        if (!selectedItem.value) return false
+                        const textExtensions = ['txt', 'json', 'xml', 'csv', 'html', 'css', 'js', 'md']
+                        return textExtensions.includes(selectedItem.value.extension)
+                    })
+
+                    const isImageFile = computed(() => {
+                        if (!selectedItem.value) return false
+                        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'tiff', 'ico', 'heic', 'heif', 'avif', 'raw', 'psd', 'ai', 'eps']
+                        return imageExtensions.includes(selectedItem.value.extension)
+                    })
+
+                    const isVideoFile = computed(() => {
+                        if (!selectedItem.value) return false
+                        const videoExtensions = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'flv', 'wmv', 'mpeg', 'mpg', '3gp', 'm4v', 'ogv', 'vob', 'ts', 'm2ts', 'mts']
+                        return videoExtensions.includes(selectedItem.value.extension)
+                    })
+
+                    const isSQLiteFile = computed(() => {
+                        if (!selectedItem.value) return false
+                        const sqliteExtensions = ['db', 'sqlite', 'sqlite3']
+                        return sqliteExtensions.includes(selectedItem.value.extension)
+                    })
+
+                    const isUnsupportedFile = computed(() => {
+                        return selectedItem.value && !isTextFile.value && !isImageFile.value && !isVideoFile.value && !isSQLiteFile.value
+                    })
+
+                    // Methods
+                    const selectItem = item => {
+                        selectedItem.value = item
+                        isPreviewing.value = false
+                    }
+
+                    const enterFolder = folderName => {
+                        currentPath.value = `${currentPath.value}/${folderName}`.replace('//', '/')
+                        selectedItem.value = null
+                        isPreviewing.value = false
+                    }
+
+                    const navigateTo = index => {
+                        const newPath = '/' + pathParts.value.slice(0, index + 1).join('/')
+                        currentPath.value = newPath
+                        selectedItem.value = null
+                        isPreviewing.value = false
+                    }
+
+                    const toggleViewMode = () => {
+                        viewMode.value = viewMode.value === 'grid' ? 'list' : 'grid'
+                    }
+
+                    const sortBy = field => {
+                        if (sortField.value === field) {
+                            sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+                        } else {
+                            sortField.value = field
+                            sortDirection.value = 'asc'
+                        }
+                    }
+
+                    const sortIcon = field => {
+                        if (sortField.value !== field) return 'fa-sort'
+                        return sortDirection.value === 'asc' ? 'fa-sort-up' : 'fa-sort-down'
+                    }
+
+                    const formatFileSize = bytes => {
+                        if (bytes === 0) return '0 Bytes'
+
+                        const k = 1024
+                        const sizes = ['Bytes', 'KB', 'MB', 'GB']
+                        const i = Math.floor(Math.log(bytes) / Math.log(k))
+
+                        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+                    }
+
+                    const formatDate = dateString => {
+                        const date = new Date(dateString)
+                        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+                    }
+
+                    const getFileIcon = item => {
+                        if (item.isFolder) return 'fas fa-folder text-yellow-500'
+
+                        const fileIcons = {
+                            pdf: 'fas fa-file-pdf text-red-500',
+                            doc: 'fas fa-file-word text-blue-500',
+                            docx: 'fas fa-file-word text-blue-500',
+                            xls: 'fas fa-file-excel text-green-500',
+                            xlsx: 'fas fa-file-excel text-green-500',
+                            ppt: 'fas fa-file-powerpoint text-orange-500',
+                            pptx: 'fas fa-file-powerpoint text-orange-500',
+                            zip: 'fas fa-file-zipper text-yellow-500',
+                            rar: 'fas fa-file-zipper text-yellow-500',
+                            txt: 'fas fa-file-lines text-gray-500',
+                            json: 'fas fa-file-code text-yellow-500',
+                            js: 'fas fa-file-code text-yellow-400',
+                            css: 'fas fa-file-code text-blue-500',
+                            html: 'fas fa-file-code text-orange-500',
+                            py: 'fas fa-file-code text-blue-400',
+                            jpg: 'fas fa-file-image text-green-500',
+                            jpeg: 'fas fa-file-image text-green-500',
+                            png: 'fas fa-file-image text-blue-500',
+                            gif: 'fas fa-file-image text-purple-500',
+                            mp4: 'fas fa-file-video text-red-500',
+                            mov: 'fas fa-file-video text-red-500',
+                            avi: 'fas fa-file-video text-red-500',
+                            db: 'fas fa-database text-yellow-500',
+                            sqlite: 'fas fa-database text-yellow-500'
+                        }
+
+                        return fileIcons[item.extension] || 'fas fa-file text-gray-500'
+                    }
+
+                    const getFileIconClass = item => {
+                        if (item.isFolder) return 'folder-icon'
+                        if (isTextFile.value && selectedItem.value?.path === item.path) return 'file-icon-text'
+                        if (isImageFile.value && selectedItem.value?.path === item.path) return 'file-icon-image'
+                        if (isVideoFile.value && selectedItem.value?.path === item.path) return 'file-icon-video'
+                        if (isSQLiteFile.value && selectedItem.value?.path === item.path) return 'file-icon-sqlite'
+
+                        return 'file-icon-other'
+                    }
+
+                    const previewFile = item => {
+                        selectedItem.value = item
+                        isPreviewing.value = true
+                        isPreviewFullscreen.value = false
+
+                        // Mock file content based on file type
+                        if (isTextFile.value) {
+                            fileContent.value =
+                                'This is a sample text content for the file: ' +
+                                item.name +
+                                '\n\n' +
+                                'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam euismod ' +
+                                'nisl non nisi ultricies, vitae convallis libero tincidunt. Fusce auctor ' +
+                                'erat non nisl accumsan, ac ultrices tortor commodo.'
+                        } else if (isImageFile.value) {
+                            // Use a placeholder image
+                            fileContent.value = 'https://via.placeholder.com/800x600.png?text=' + encodeURIComponent(item.name)
+                        } else if (isVideoFile.value) {
+                            // Use a sample video (replace with your own or use a placeholder)
+                            fileContent.value = 'https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4'
+                        } else if (isSQLiteFile.value) {
+                            // Mock SQLite data
+                            sqliteTables.value = ['users', 'products', 'orders']
+                            currentSQLiteTable.value = 'users'
+                            sqliteColumns.value = ['id', 'name', 'email']
+                            sqliteData.value = [
+                                { id: 1, name: 'John Doe', email: 'john@example.com' },
+                                { id: 2, name: 'Jane Smith', email: 'jane@example.com' },
+                                { id: 3, name: 'Bob Johnson', email: 'bob@example.com' }
+                            ]
+                        } else {
+                            fileContent.value = ''
+                        }
+                    }
+
+                    const toggleFullscreen = () => {
+                        isPreviewFullscreen.value = !isPreviewFullscreen.value
+                    }
+
+                    const downloadFile = () => {
+                        if (!selectedItem.value) return
+
+                        // Create a dummy download link
+                        const link = document.createElement('a')
+                        link.href = URL.createObjectURL(new Blob(['Sample content for ' + selectedItem.value.name]))
+                        link.download = selectedItem.value.name
+                        document.body.appendChild(link)
+                        link.click()
+                        document.body.removeChild(link)
+
+                        // Show a notification (would be better with a proper notification system)
+                        alert('Download started for ' + selectedItem.value.name)
+                    }
+
+                    const createNewFolder = () => {
+                        newFolderName.value = ''
+                        isCreatingFolder.value = true
+                    }
+
+                    const confirmCreateFolder = () => {
+                        if (!newFolderName.value.trim()) return
+
+                        const newFolder = {
+                            name: newFolderName.value,
+                            path: currentPath.value + '/' + newFolderName.value,
+                            size: 0,
+                            isFolder: true,
+                            modified: new Date().toISOString()
+                        }
+
+                        items.value.push(newFolder)
+                        allFolders.value.push(newFolder)
+                        isCreatingFolder.value = false
+                    }
+
+                    const uploadFile = () => {
+                        fileInput.value.click()
+                    }
+
+                    const handleFileUpload = event => {
+                        const files = event.target.files
+
+                        for (let i = 0; i < files.length; i++) {
+                            const file = files[i]
+                            const extension = file.name.split('.').pop().toLowerCase()
+
+                            const newFile = {
+                                name: file.name,
+                                path: currentPath.value + '/' + file.name,
+                                size: file.size,
+                                isFolder: false,
+                                extension: extension,
+                                modified: new Date(file.lastModified).toISOString()
+                            }
+
+                            items.value.push(newFile)
+                        }
+
+                        // Reset file input
+                        event.target.value = ''
+                    }
+
+                    const renameItem = item => {
+                        item = item || selectedItem.value
+                        if (!item) return
+
+                        const newName = prompt('Enter new name:', item.name)
+                        if (newName && newName.trim() && newName !== item.name) {
+                            const oldPath = item.path
+                            const newPath = item.path.substring(0, item.path.lastIndexOf('/')) + '/' + newName
+
+                            // Update the item
+                            item.name = newName
+                            item.path = newPath
+                            item.modified = new Date().toISOString()
+
+                            // Show a success message
+                            alert(`Renamed from ${oldPath} to ${newPath}`)
+                        }
+                    }
+
+                    const deleteItem = item => {
+                        item = item || selectedItem.value
+                        if (!item) return
+
+                        if (confirm(`Are you sure you want to delete "${item.name}"?`)) {
+                            const index = items.value.findIndex(i => i.path === item.path)
+                            if (index !== -1) {
+                                items.value.splice(index, 1)
+
+                                // Update all folders if this was a folder
+                                if (item.isFolder) {
+                                    const folderIndex = allFolders.value.findIndex(f => f.path === item.path)
+                                    if (folderIndex !== -1) {
+                                        allFolders.value.splice(folderIndex, 1)
+                                    }
+                                }
+
+                                if (selectedItem.value && selectedItem.value.path === item.path) {
+                                    selectedItem.value = null
+                                    isPreviewing.value = false
+                                }
+
+                                alert(`"${item.name}" has been deleted.`)
+                            }
+                        }
+                    }
+
+                    const showContextMenu = (event, item) => {
+                        contextMenu.value = {
+                            visible: true,
+                            x: event.clientX,
+                            y: event.clientY,
+                            item: item
+                        }
+
+                        // Close context menu when clicking elsewhere
+                        const closeMenu = () => {
+                            contextMenu.value.visible = false
+                            document.removeEventListener('click', closeMenu)
+                        }
+
+                        document.addEventListener('click', closeMenu)
+                    }
+
+                    const downloadItem = item => {
+                        selectItem(item)
+                        downloadFile()
+                    }
+
+                    const initiateRename = item => {
+                        selectItem(item)
+                        renameItem(item)
+                    }
+
+                    const showMoveDialog = item => {
+                        itemToMove.value = item
+                        moveTargetPath.value = ''
+                        isMovingItem.value = true
+                    }
+
+                    const confirmMoveItem = () => {
+                        if (!itemToMove.value || !moveTargetPath.value) return
+
+                        const oldPath = itemToMove.value.path
+                        const newPath = moveTargetPath.value + '/' + itemToMove.value.name
+
+                        // Update the item's path
+                        itemToMove.value.path = newPath
+                        itemToMove.value.modified = new Date().toISOString()
+
+                        // If it's a folder, we also need to update all items inside it
+                        if (itemToMove.value.isFolder) {
+                            const oldFolderPath = oldPath
+                            const newFolderPath = newPath
+
+                            items.value.forEach(item => {
+                                if (item.path.startsWith(oldFolderPath + '/')) {
+                                    item.path = newFolderPath + item.path.substring(oldFolderPath.length)
+                                }
+                            })
+
+                            // Update allFolders array
+                            allFolders.value = items.value.filter(item => item.isFolder)
+                        }
+
+                        alert(`Moved "${itemToMove.value.name}" from ${oldPath} to ${newPath}`)
+                        isMovingItem.value = false
+                    }
+
+                    // Template ref
+                    const fileInput = ref(null)
+
+                    // Lifecycle hooks
+                    onMounted(() => {
+                        initMockData()
+
+                        // Close context menu when pressing Escape
+                        document.addEventListener('keydown', e => {
+                            if (e.key === 'Escape' && contextMenu.value.visible) {
+                                contextMenu.value.visible = false
+                            }
+                        })
+                    })
+
+                    return {
+                        // State
+                        items,
+                        selectedItem,
+                        currentPath,
+                        viewMode,
+                        isPreviewing,
+                        isPreviewFullscreen,
+                        fileContent,
+                        searchQuery,
+                        newFolderName,
+                        isCreatingFolder,
+                        showSidebar,
+                        sqliteTables,
+                        sqliteColumns,
+                        sqliteData,
+                        currentSQLiteTable,
+                        contextMenu,
+                        isMovingItem,
+                        itemToMove,
+                        moveTargetPath,
+                        allFolders,
+                        fileInput,
+
+                        // Computed
+                        pathParts,
+                        filteredItems,
+                        isTextFile,
+                        isImageFile,
+                        isVideoFile,
+                        isSQLiteFile,
+                        isUnsupportedFile,
+
+                        // Methods
+                        selectItem,
+                        enterFolder,
+                        navigateTo,
+                        toggleViewMode,
+                        sortBy,
+                        sortIcon,
+                        formatFileSize,
+                        formatDate,
+                        getFileIcon,
+                        getFileIconClass,
+                        previewFile,
+                        toggleFullscreen,
+                        downloadFile,
+                        createNewFolder,
+                        confirmCreateFolder,
+                        uploadFile,
+                        handleFileUpload,
+                        renameItem,
+                        deleteItem,
+                        showContextMenu,
+                        downloadItem,
+                        initiateRename,
+                        showMoveDialog,
+                        confirmMoveItem
+                    }
+                }
+            }).mount('#app')
+        </script>
+    </body>
+</html>

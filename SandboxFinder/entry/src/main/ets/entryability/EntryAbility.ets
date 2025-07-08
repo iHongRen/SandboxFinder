@@ -43,7 +43,8 @@ export default class EntryAbility extends UIAbility {
      }
    }
 
-  onDestroy(): void {
+  async onDestroy() {
+    await SandboxFinder.stop()
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
   }
 

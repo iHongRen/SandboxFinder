@@ -98,6 +98,167 @@ export class FileManager {
     }
   }
 
+  async mkdir(path: string, name: string): Promise<boolean> {
+    if (this.canMkdir(path)) {
+      await this.ensureDirectoryExists(path + '/' + name.trim().replace('/', ''))
+      return true
+    }
+    return false
+  }
+
+  // 列出目录内容（ls）
+  public async listDir(dirPath: string): Promise<FileItem[]> {
+    try {
+      if (dirPath === '' || dirPath === '/') {
+        
+      }
+
+      const absPath = SandboxDir.el2;
+      let filenames = await fileIo.listFile(absPath);
+      const filters = ['__MACOSX', '.DS_Store'];
+      filenames = filenames.filter(e => !filters.includes(e) && e !== '.' && e !== '..');
+      const fileInfos = await Promise.all(filenames.map(async filename => {
+        const filePath = absPath + '/' + filename;
+        const stat = await fileIo.stat(filePath);
+        const item = new FileItem();
+        item.name = filename;
+        item.path = filePath;
+        item.size = this.formatSize(stat.size);
+        item.date = this.formatMtime(stat.mtime);
+        item.isFolder = stat.isDirectory();
+        return item;
+      }));
+      return fileInfos;
+    } catch (err) {
+      console.error('listDir失败:', err);
+      return [];
+    }
+  }
+
+  // 读取文件内容（cat）
+  // public async readFileContent(filePath: string): Promise<string> {
+  //   try {
+  //     const absPath = filePath.startsWith('/') ? filePath : this.serverPath + '/' + filePath;
+  //     const file = await fileIo.open(absPath, fileIo.OpenMode.READ_ONLY);
+  //     const stat = await fileIo.stat(absPath);
+  //     const buf = new ArrayBuffer(stat.size);
+  //     await fileIo.read(file.fd, buf);
+  //     await fileIo.close(file.fd);
+  //     // 假设文本文件 utf-8
+  //     return String.fromCharCode.apply(null, new Uint8Array(buf));
+  //   } catch (err) {
+  //     console.error('readFileContent失败:', err);
+  //     return '';
+  //   }
+  // }
+
+  // 新建空文件（touch）
+  public async touch(filePath: string): Promise<void> {
+    const absPath = filePath.startsWith('/') ? filePath : this.serverPath + '/' + filePath;
+    const dirPath = absPath.substring(0, absPath.lastIndexOf('/'));
+    await this.ensureDirectoryExists(dirPath);
+    const file =
+      await fileIo.open(absPath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
+    await fileIo.close(file.fd);
+  }
+
+  // 删除文件或目录（rm）
+  public async remove(path: string, recursive: boolean = false): Promise<void> {
+    const absPath = path.startsWith('/') ? path : this.serverPath + '/' + path;
+    const stat = await fileIo.stat(absPath);
+    if (stat.isDirectory()) {
+      if (recursive) {
+        await this.deleteDirectory(absPath);
+      } else {
+        await fileIo.rmdir(absPath);
+      }
+    } else {
+      await fileIo.unlink(absPath);
+    }
+  }
+
+  // 重命名/移动（mv）
+  public async move(src: string, dest: string): Promise<void> {
+    const absSrc = src.startsWith('/') ? src : this.serverPath + '/' + src;
+    const absDest = dest.startsWith('/') ? dest : this.serverPath + '/' + dest;
+    await fileIo.rename(absSrc, absDest);
+  }
+
+  // 复制文件或目录（cp）
+  public async copy(src: string, dest: string, recursive: boolean = false): Promise<void> {
+    const absSrc = src.startsWith('/') ? src : this.serverPath + '/' + src;
+    const absDest = dest.startsWith('/') ? dest : this.serverPath + '/' + dest;
+    const stat = await fileIo.stat(absSrc);
+    if (stat.isDirectory()) {
+      if (!recursive) {
+        throw new Error('目录复制需 recursive=true');
+      }
+      await this.copyDirectory(absSrc, absDest);
+    } else {
+      await this.copyFile(absSrc, absDest);
+    }
+  }
+
+  private async copyFile(src: string, dest: string): Promise<void> {
+    const srcFile = await fileIo.open(src, fileIo.OpenMode.READ_ONLY);
+    const stat = await fileIo.stat(src);
+    const buf = new ArrayBuffer(stat.size);
+    await fileIo.read(srcFile.fd, buf);
+    await fileIo.close(srcFile.fd);
+    const destFile =
+      await fileIo.open(dest, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
+    await fileIo.write(destFile.fd, buf);
+    await fileIo.close(destFile.fd);
+  }
+
+  private async copyDirectory(src: string, dest: string): Promise<void> {
+    await this.ensureDirectoryExists(dest);
+    const files = await fileIo.listFile(src);
+    for (const file of files) {
+      if (file === '.' || file === '..') {
+        continue;
+      }
+      const srcPath = src + '/' + file;
+      const destPath = dest + '/' + file;
+      const stat = await fileIo.stat(srcPath);
+      if (stat.isDirectory()) {
+        await this.copyDirectory(srcPath, destPath);
+      } else {
+        await this.copyFile(srcPath, destPath);
+      }
+    }
+  }
+
+  // 写入/覆盖文件内容（write）
+  public async writeFile(filePath: string, content: ArrayBuffer): Promise<void> {
+    const absPath = filePath.startsWith('/') ? filePath : this.serverPath + '/' + filePath;
+    const dirPath = absPath.substring(0, absPath.lastIndexOf('/'));
+    await this.ensureDirectoryExists(dirPath);
+    const file =
+      await fileIo.open(absPath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
+    await fileIo.write(file.fd, content);
+    await fileIo.close(file.fd);
+  }
+
+  canMkdir(path: string): boolean {
+    if (!path) {
+      return false
+    }
+
+    if (path === this.serverPath) {
+      return false
+    }
+
+    if (!path.startsWith(SandboxDir.el1) && !path.startsWith(SandboxDir.el2)) {
+      return false
+    }
+
+    if (path === SandboxDir.el1 || path === SandboxDir.el2) {
+      return false
+    }
+    return true
+  }
+
   // 获取目录下的所有文件和文件夹
   async getDirectoryContents(dirName: string): Promise<FileItem[]> {
     try {
@@ -118,7 +279,7 @@ export class FileManager {
         item.path = filePath
         item.size = this.formatSize(stat.size)
         item.date = this.formatMtime(stat.mtime)
-        item.isDirectory = stat.isDirectory()
+        item.isFolder = stat.isDirectory()
         return item
       }))
 
@@ -177,7 +338,8 @@ export class FileManager {
       await this.ensureDirectoryExists(dirPath)
 
       // 写入文件
-      const file = await fileIo.open(fullPath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC)
+      const file =
+        await fileIo.open(fullPath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC)
       await fileIo.write(file.fd, content)
 
       const outFileDir = this.serverPath + '/' + projectName.replace(/\.[^/.]+$/, '')

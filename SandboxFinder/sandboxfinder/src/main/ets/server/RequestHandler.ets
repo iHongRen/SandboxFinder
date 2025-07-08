@@ -202,7 +202,22 @@ export class RequestHandler {
   // 处理API请求
   private async handleApiRequest(method: string, url: string): Promise<string | ArrayBuffer> {
     try {
-      if (url === '/api/server-info') {
+      // 1. 获取参数
+      const arr = url.split('?');
+      const pathPart = arr[0]
+      const queryString = arr[1]
+      const params: Record<string, string> = {};
+      if (queryString) {
+        queryString.split('&').forEach(pair => {
+          const arr = pair.split('=');
+          const k = arr[0]
+          const v = arr[1]
+          params[k] = decodeURIComponent(v);
+        });
+      }
+
+      // 2. 路由API
+      if (pathPart === '/api/server-info') {
         const serverInfo: ServerInfo = {
           address: this.serverAddress,
           port: this.serverPort,
@@ -210,19 +225,93 @@ export class RequestHandler {
         return this.createHttpResponse(200, JSON.stringify(serverInfo), 'application/json');
       }
 
-      if (url === '/api/projects') {
-        if (method === 'GET') {
-          const projects = await this.fileManager.getProjectList();
-          return this.createHttpResponse(200, JSON.stringify(projects), 'application/json');
-        }
+      // ls: 列出目录内容
+      if (pathPart === '/api/ls' && method === 'GET') {
+        const dirPath = params['path'] || '/';
+        const list = await this.fileManager.listDir(dirPath);
+        return this.createHttpResponse(200, JSON.stringify(list), 'application/json');
       }
 
-      if (url.startsWith('/api/delete') && method === 'POST') {
-        const projectName = url.split('?')[1].split('=')[1]
-        await this.fileManager.deleteProject(projectName);
-        this.onFileChanged?.()
+      // cat: 读取文件内容
+      // if (pathPart === '/api/cat' && method === 'GET') {
+      //   const filePath = params['path'];
+      //   if (!filePath) {
+      //     return this.createHttpResponse(400, 'Missing path');
+      //   }
+      //   const content = await this.fileManager.readFileContent(filePath);
+      //   return this.createHttpResponse(200, content, 'text/plain');
+      // }
+
+      // touch: 新建空文件
+      if (pathPart === '/api/touch' && method === 'POST') {
+        const filePath = params['path'];
+        if (!filePath) {
+          return this.createHttpResponse(400, 'Missing path');
+        }
+        await this.fileManager.writeProjectFile(filePath, new ArrayBuffer(0));
+        this.onFileChanged?.();
         return this.createHttpResponse(200, JSON.stringify({ success: true }), 'application/json');
       }
+
+      // rm: 删除文件或目录
+      if (pathPart === '/api/rm' && method === 'POST') {
+        const filePath = params['path'];
+        const recursive = params['recursive'] === 'true';
+        if (!filePath) {
+          return this.createHttpResponse(400, 'Missing path');
+        }
+        await this.fileManager.remove(filePath, recursive);
+        this.onFileChanged?.();
+        return this.createHttpResponse(200, JSON.stringify({ success: true }), 'application/json');
+      }
+
+      // mv: 重命名/移动
+      if (pathPart === '/api/mv' && method === 'POST') {
+        const src = params['src'];
+        const dest = params['dest'];
+        if (!src || !dest) {
+          return this.createHttpResponse(400, 'Missing src or dest');
+        }
+        await this.fileManager.move(src, dest);
+        this.onFileChanged?.();
+        return this.createHttpResponse(200, JSON.stringify({ success: true }), 'application/json');
+      }
+
+      // cp: 复制
+      if (pathPart === '/api/cp' && method === 'POST') {
+        const src = params['src'];
+        const dest = params['dest'];
+        const recursive = params['recursive'] === 'true';
+        if (!src || !dest) {
+          return this.createHttpResponse(400, 'Missing src or dest');
+        }
+        await this.fileManager.copy(src, dest, recursive);
+        this.onFileChanged?.();
+        return this.createHttpResponse(200, JSON.stringify({ success: true }), 'application/json');
+      }
+
+      // mkdir: 新建目录
+      if (pathPart === '/api/mkdir' && method === 'POST') {
+        const dirPath = params['path'];
+        if (!dirPath) {
+          return this.createHttpResponse(400, 'Missing path');
+        }
+        await this.fileManager.mkdir(dirPath, '');
+        this.onFileChanged?.();
+        return this.createHttpResponse(200, JSON.stringify({ success: true }), 'application/json');
+      }
+
+      // write: 写入/覆盖文件内容
+      // if (pathPart === '/api/write' && method === 'POST') {
+      //   const filePath = params['path'];
+      //   const content = params['content'] || '';
+      //   if (!filePath) {
+      //     return this.createHttpResponse(400, 'Missing path');
+      //   }
+      //   await this.fileManager.writeProjectFile(filePath, Utils.strToUint8Array(content).buffer);
+      //   this.onFileChanged?.();
+      //   return this.createHttpResponse(200, JSON.stringify({ success: true }), 'application/json');
+      // }
 
       return this.createHttpResponse(404, 'API not found');
     } catch (error) {
