@@ -80,30 +80,32 @@ export class FileManager {
 
   // 列出目录内容（ls）
   public async listDir(dirPath: string): Promise<FileItem[]> {
+
     try {
       if (dirPath === '' || dirPath === '/' || dirPath === '/data/storage') {
-        const fileInfos = await Promise.all(['el1', 'el2'].map(async filename => {
+        const fileInfos = ['el1', 'el2'].map(filename => {
           const filePath = '/data/storage/' + filename;
           const item = new FileItem();
           item.name = filename;
           item.path = filePath;
           item.isFolder = true
           return item;
-        }));
+        })
         return fileInfos
       }
 
       if (dirPath === '/data/storage/el1' || dirPath === '/data/storage/el2') {
-        const fileInfos = await Promise.all(['base', 'database'].map(async filename => {
+        const fileInfos = ['base', 'database'].map(filename => {
           const filePath = dirPath + '/' + filename;
           const item = new FileItem();
           item.name = filename;
           item.path = filePath;
           item.isFolder = true
           return item;
-        }));
+        });
         return fileInfos
       }
+
 
       const filenames = await fileIo.listFile(dirPath, { recursion: false });
       const fileInfos = await Promise.all(filenames.map(async filename => {
@@ -118,6 +120,7 @@ export class FileManager {
         item.ext = item.isFolder ? '' : (filename.split('.')?.pop()?.toLowerCase() || '');
         return item;
       }));
+
       return fileInfos;
     } catch (err) {
       console.error('listDir失败:', err);

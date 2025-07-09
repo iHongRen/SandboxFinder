@@ -41,10 +41,10 @@ export class RequestHandler {
 
   // 处理HTTP请求
   public async handleHttpRequest(data: Uint8Array): Promise<string | ArrayBuffer> {
-
     const decoder = util.TextDecoder.create()
     const requestData = decoder.decodeToString(data);
-    const headersStr = requestData.split('\r\n\r\n')[0]
+    const headerBodySplitIndex = requestData.indexOf('\r\n\r\n');
+    const headersStr = requestData.substring(0, headerBodySplitIndex);
     const lines = headersStr.split('\r\n');
     const firstLine = lines[0]
     const firstList = firstLine.split(' ');
@@ -55,7 +55,25 @@ export class RequestHandler {
     const headersLines = lines.slice(1); // 跳过请求行
     const headers = this.parseHeaders(headersLines.join('\r\n'));
 
+    // 处理CORS预检请求（OPTIONS）
+    if (method === 'OPTIONS') {
+      return this.createHttpResponse(200, '', 'text/plain');
+    }
+
     const contentType = headers['content-type'];
+    let bodyParams: Record<string, Object> = {};
+    // 解析 application/x-www-form-urlencoded body
+    if (method === 'POST' && contentType && contentType.includes('application/x-www-form-urlencoded')) {
+      const bodyStr = requestData.substring(headerBodySplitIndex + 4);
+      bodyStr.split('&').forEach(pair => {
+        if (!pair) return;
+        const arr = pair.split('=');
+        const k = arr[0];
+        const v = arr[1] ? decodeURIComponent(arr[1]) : '';
+        bodyParams[k] = v;
+      });
+    }
+
     if (contentType?.includes('multipart/form-data')) {
       // 处理文件上传
       if (url === '/api/upload' && method === 'POST') {
@@ -65,7 +83,7 @@ export class RequestHandler {
 
     // 处理API请求
     if (url.startsWith('/api/')) {
-      return await this.handleApiRequest(method, url);
+      return await this.handleApiRequest(method, url, bodyParams);
     }
 
     // 处理静态文件请求
@@ -200,13 +218,14 @@ export class RequestHandler {
   }
 
   // 处理API请求
-  private async handleApiRequest(method: string, url: string): Promise<string | ArrayBuffer> {
+  private async handleApiRequest(method: string, url: string,
+    bodyParams: Record<string, Object> = {}): Promise<string | ArrayBuffer> {
     try {
       // 1. 获取参数
       const arr = url.split('?');
       const pathPart = arr[0]
       const queryString = arr[1]
-      const params: Record<string, string> = {};
+      const params: Record<string, Object> = bodyParams
       if (queryString) {
         queryString.split('&').forEach(pair => {
           const arr = pair.split('=');
@@ -226,25 +245,15 @@ export class RequestHandler {
       }
 
       // ls: 列出目录内容
-      if (pathPart === '/api/ls' && method === 'GET') {
-        const dirPath = params['path'] || '/';
+      if (pathPart === '/api/ls' && method === 'POST') {
+        const dirPath = params['path'] as string || '/';
         const list = await this.fileManager.listDir(dirPath);
         return this.createHttpResponse(200, JSON.stringify(list), 'application/json');
       }
 
-      // cat: 读取文件内容
-      // if (pathPart === '/api/cat' && method === 'GET') {
-      //   const filePath = params['path'];
-      //   if (!filePath) {
-      //     return this.createHttpResponse(400, 'Missing path');
-      //   }
-      //   const content = await this.fileManager.readFileContent(filePath);
-      //   return this.createHttpResponse(200, content, 'text/plain');
-      // }
-
       // touch: 新建空文件
       if (pathPart === '/api/touch' && method === 'POST') {
-        const filePath = params['path'];
+        const filePath = params['path'] as string
         if (!filePath) {
           return this.createHttpResponse(400, 'Missing path');
         }
@@ -255,8 +264,8 @@ export class RequestHandler {
 
       // rm: 删除文件或目录
       if (pathPart === '/api/rm' && method === 'POST') {
-        const filePath = params['path'];
-        const recursive = params['recursive'] === 'true';
+        const filePath = params['path'] as string
+        const recursive = params['recursive'] === 'true' || params['recursive'] === true;
         if (!filePath) {
           return this.createHttpResponse(400, 'Missing path');
         }
@@ -267,8 +276,8 @@ export class RequestHandler {
 
       // mv: 重命名/移动
       if (pathPart === '/api/mv' && method === 'POST') {
-        const src = params['src'];
-        const dest = params['dest'];
+        const src = params['src'] as string
+        const dest = params['dest'] as string
         if (!src || !dest) {
           return this.createHttpResponse(400, 'Missing src or dest');
         }
@@ -279,9 +288,9 @@ export class RequestHandler {
 
       // cp: 复制
       if (pathPart === '/api/cp' && method === 'POST') {
-        const src = params['src'];
-        const dest = params['dest'];
-        const recursive = params['recursive'] === 'true';
+        const src = params['src'] as string
+        const dest = params['dest'] as string
+        const recursive = params['recursive'] === 'true' || params['recursive'] === true;
         if (!src || !dest) {
           return this.createHttpResponse(400, 'Missing src or dest');
         }
@@ -292,7 +301,7 @@ export class RequestHandler {
 
       // mkdir: 新建目录
       if (pathPart === '/api/mkdir' && method === 'POST') {
-        const dirPath = params['path'];
+        const dirPath = params['path'] as string
         if (!dirPath) {
           return this.createHttpResponse(400, 'Missing path');
         }

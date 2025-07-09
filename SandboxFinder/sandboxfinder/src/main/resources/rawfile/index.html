@@ -435,7 +435,7 @@
         </div>
 
         <script>
-            const { createApp, ref, computed, onMounted } = Vue
+            const { createApp, ref, computed, onMounted, watch } = Vue
 
             createApp({
                 setup() {
@@ -470,7 +470,15 @@
 
                     const loadPath = async path => {
                         try {
-                            const res = await fetch(`http://192.168.2.38:7777/api/ls?path=${encodeURIComponent(path)}`)
+                            const formData = new URLSearchParams()
+                            formData.append('path', path)
+                            const res = await fetch('http://192.168.2.38:7777/api/ls', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded'
+                                },
+                                body: formData.toString()
+                            })
                             if (!res.ok) throw new Error('Failed to fetch directory')
                             const data = await res.json()
                             items.value = data
@@ -482,47 +490,33 @@
                         }
                     }
 
-                    // Computed properties
-                    const pathParts = computed(() => {
-                        return currentPath.value.split('/').filter(part => part.trim() !== '')
-                    })
+                    // 普通变量替代 computed，手动刷新
+                    let filteredItems = ref([])
 
-                    const filteredItems = computed(() => {
+                    const updateFilteredItems = () => {
+                        const matchPath = currentPath.value.toLowerCase()
+                        const matchDepth = currentPath.value.split('/').filter(Boolean).length + 1
+
                         let result = items.value.filter(item => {
+                            if (!item.path) return false
                             const itemPath = item.path.toLowerCase()
-                            const matchPath = currentPath.value.toLowerCase()
-
-                            // Only show items that are in the current path
-                            return itemPath.startsWith(matchPath) && itemPath.split('/').length === currentPath.value.split('/').length + 1
+                            const itemDepth = itemPath.split('/').filter(Boolean).length
+                            return itemPath.startsWith(matchPath) && itemDepth === matchDepth
                         })
 
-                        // Apply search filter
                         if (searchQuery.value.trim()) {
                             const query = searchQuery.value.toLowerCase()
                             result = result.filter(item => item.name.toLowerCase().includes(query))
                         }
 
-                        // Apply sorting
-                        result.sort((a, b) => {
-                            // Folders first
-                            if (a.isFolder && !b.isFolder) return -1
-                            if (!a.isFolder && b.isFolder) return 1
+                        filteredItems.value = result
+                    }
 
-                            // Then sort by selected field
-                            let compareValue = 0
+                    // 监听依赖项变化，手动刷新
+                    watch([items, currentPath, searchQuery], updateFilteredItems, { immediate: true })
 
-                            if (sortField.value === 'name') {
-                                compareValue = a.name.localeCompare(b.name)
-                            } else if (sortField.value === 'size') {
-                                compareValue = a.size - b.size
-                            } else if (sortField.value === 'modified') {
-                                compareValue = new Date(a.modified) - new Date(b.modified)
-                            }
-
-                            return sortDirection.value === 'asc' ? compareValue : -compareValue
-                        })
-
-                        return result
+                    const pathParts = computed(() => {
+                        return currentPath.value.split('/').filter(part => part.trim() !== '')
                     })
 
                     const isTextFile = computed(() => {
