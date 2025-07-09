@@ -70,34 +70,6 @@ export class FileManager {
     await fileIo.close(outFile.fd)
   }
 
-  // 获取项目列表
-  public async getProjectList(): Promise<FileItem[]> {
-    try {
-      let projects: FileItem[] = []
-      const dir = await fileIo.listFile(this.serverPath)
-
-      for (const item of dir) {
-        if (item !== '.' && item !== '..' && item !== 'index.html') {
-          const itemPath = this.serverPath + '/' + item
-          const stat = await fileIo.stat(itemPath)
-
-          if (stat.isDirectory()) {
-            projects.push({
-              name: item,
-              date: this.formatMtime(stat.mtime),
-              size: this.formatSize(stat.size),
-            })
-          }
-        }
-      }
-
-      return projects
-    } catch (error) {
-      console.error('获取项目列表失败:', error)
-      return []
-    }
-  }
-
   async mkdir(path: string, name: string): Promise<boolean> {
     if (this.canMkdir(path)) {
       await this.ensureDirectoryExists(path + '/' + name.trim().replace('/', ''))
@@ -109,23 +81,41 @@ export class FileManager {
   // 列出目录内容（ls）
   public async listDir(dirPath: string): Promise<FileItem[]> {
     try {
-      if (dirPath === '' || dirPath === '/') {
-        
+      if (dirPath === '' || dirPath === '/' || dirPath === '/data/storage') {
+        const fileInfos = await Promise.all(['el1', 'el2'].map(async filename => {
+          const filePath = '/data/storage/' + filename;
+          const item = new FileItem();
+          item.name = filename;
+          item.path = filePath;
+          item.isFolder = true
+          return item;
+        }));
+        return fileInfos
       }
 
-      const absPath = SandboxDir.el2;
-      let filenames = await fileIo.listFile(absPath);
-      const filters = ['__MACOSX', '.DS_Store'];
-      filenames = filenames.filter(e => !filters.includes(e) && e !== '.' && e !== '..');
+      if (dirPath === '/data/storage/el1' || dirPath === '/data/storage/el2') {
+        const fileInfos = await Promise.all(['base', 'database'].map(async filename => {
+          const filePath = dirPath + '/' + filename;
+          const item = new FileItem();
+          item.name = filename;
+          item.path = filePath;
+          item.isFolder = true
+          return item;
+        }));
+        return fileInfos
+      }
+
+      const filenames = await fileIo.listFile(dirPath, { recursion: false });
       const fileInfos = await Promise.all(filenames.map(async filename => {
-        const filePath = absPath + '/' + filename;
+        const filePath = dirPath + '/' + filename;
         const stat = await fileIo.stat(filePath);
         const item = new FileItem();
         item.name = filename;
         item.path = filePath;
-        item.size = this.formatSize(stat.size);
-        item.date = this.formatMtime(stat.mtime);
+        item.size = stat.size
+        item.modified = stat.mtime
         item.isFolder = stat.isDirectory();
+        item.ext = item.isFolder ? '' : (filename.split('.')?.pop()?.toLowerCase() || '');
         return item;
       }));
       return fileInfos;
@@ -260,35 +250,35 @@ export class FileManager {
   }
 
   // 获取目录下的所有文件和文件夹
-  async getDirectoryContents(dirName: string): Promise<FileItem[]> {
-    try {
-      const dirPath = this.serverPath + '/' + dirName
-
-      // 读取目录内容
-      let filenames = await fileIo.listFile(dirPath)
-      const filters = ['__MACOSX', '.DS_Store']
-      filenames = filenames.filter(e => !filters.includes(e))
-
-      // 并行获取每个条目的详细信息
-      const fileInfos = await Promise.all(filenames.map(async filename => {
-        const filePath = dirPath + '/' + filename
-        const stat = await fileIo.stat(filePath)
-
-        const item = new FileItem()
-        item.name = filename
-        item.path = filePath
-        item.size = this.formatSize(stat.size)
-        item.date = this.formatMtime(stat.mtime)
-        item.isFolder = stat.isDirectory()
-        return item
-      }))
-
-      return fileInfos
-    } catch (err) {
-      console.error('获取目录内容失败:', err)
-      return []
-    }
-  }
+  // async getDirectoryContents(dirName: string): Promise<FileItem[]> {
+  //   try {
+  //     const dirPath = this.serverPath + '/' + dirName
+  //
+  //     // 读取目录内容
+  //     let filenames = await fileIo.listFile(dirPath)
+  //     const filters = ['__MACOSX', '.DS_Store']
+  //     filenames = filenames.filter(e => !filters.includes(e))
+  //
+  //     // 并行获取每个条目的详细信息
+  //     const fileInfos = await Promise.all(filenames.map(async filename => {
+  //       const filePath = dirPath + '/' + filename
+  //       const stat = await fileIo.stat(filePath)
+  //
+  //       const item = new FileItem()
+  //       item.name = filename
+  //       item.path = filePath
+  //       item.size = this.formatSize(stat.size)
+  //       item.modified = this.formatMtime(stat.mtime)
+  //       item.isFolder = stat.isDirectory()
+  //       return item
+  //     }))
+  //
+  //     return fileInfos
+  //   } catch (err) {
+  //     console.error('获取目录内容失败:', err)
+  //     return []
+  //   }
+  // }
 
   // 删除项目
   public async deleteProject(projectName: string): Promise<void> {

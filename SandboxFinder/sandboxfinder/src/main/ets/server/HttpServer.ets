@@ -62,7 +62,7 @@ export class HttpServer {
 
   // 停止服务器
   public async stopServer(): Promise<void> {
-    return new Promise((resolve)=>{
+    return new Promise((resolve) => {
       if (this.tcpServer) {
         this.tcpServer.off('connect', () => {
           this.clients = []
@@ -110,8 +110,8 @@ export class HttpServer {
         if (bodyLength >= expectedContentLength) {
 
           // 处理完整数据
-          const response = await this.clientHandler(new Uint8Array(receivedData));
-
+          let response = await this.clientHandler(new Uint8Array(receivedData));
+          response = this.addCORSHeaders(response);
           await clientSocket.send({
             data: response
           });
@@ -121,13 +121,12 @@ export class HttpServer {
 
       // 如果没有Content-Length或者是GET请求，直接处理
       if (!isReceivingBody && headerEndIndex !== -1 && expectedContentLength === 0) {
-        const response = await this.clientHandler(new Uint8Array(receivedData));
-
+        let response = await this.clientHandler(new Uint8Array(receivedData));
+        response = this.addCORSHeaders(response);
         await clientSocket.send({
           data: response
         })
       }
-
 
       clientSocket.on('error', (error: BusinessError) => {
         console.error('错误:', error);
@@ -137,6 +136,49 @@ export class HttpServer {
         console.error('已关闭');
       });
     });
+  }
+
+  // 为响应添加CORS头
+  private addCORSHeaders(response: string | ArrayBuffer): string | ArrayBuffer {
+    if (typeof response === 'string') {
+      // 在header后插入CORS头
+      const headerEnd = response.indexOf('\r\n\r\n');
+      if (headerEnd !== -1) {
+        const corsHeaders =
+          'Access-Control-Allow-Origin: *\r\n' +
+            'Access-Control-Allow-Methods: GET,POST,PUT,DELETE,OPTIONS\r\n' +
+            'Access-Control-Allow-Headers: Content-Type\r\n';
+        return response.slice(0, headerEnd + 2) + corsHeaders + response.slice(headerEnd + 2);
+      }
+    } else if (response instanceof ArrayBuffer) {
+      // 二进制响应，尝试插入CORS头
+      // 先将前面部分转为字符串，插入CORS头，再拼接body
+
+      const arr = new Uint8Array(response);
+      // 查找header结束位置（\r\n\r\n）
+      let headerEnd = -1;
+      for (let i = 0; i < arr.length - 3; i++) {
+        if (arr[i] === 13 && arr[i + 1] === 10 && arr[i + 2] === 13 && arr[i + 3] === 10) {
+          headerEnd = i + 4;
+          break;
+        }
+      }
+      if (headerEnd !== -1) {
+        const headerStr = Utils.uint8ToStr(arr.slice(0, headerEnd))
+        const corsHeaders =
+          'Access-Control-Allow-Origin: *\r\n' +
+            'Access-Control-Allow-Methods: GET,POST,PUT,DELETE,OPTIONS\r\n' +
+            'Access-Control-Allow-Headers: Content-Type\r\n';
+        const newHeader = headerStr.replace('\r\n\r\n', '\r\n' + corsHeaders + '\r\n');
+        const newHeaderBytes = Utils.strToUint8Array(newHeader);
+        const bodyBytes = arr.slice(headerEnd);
+        const merged = new Uint8Array(newHeaderBytes.length + bodyBytes.length);
+        merged.set(newHeaderBytes, 0);
+        merged.set(bodyBytes, newHeaderBytes.length);
+        return merged.buffer;
+      }
+    }
+    return response;
   }
 
 

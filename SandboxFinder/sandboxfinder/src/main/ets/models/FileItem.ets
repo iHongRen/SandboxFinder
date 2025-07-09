@@ -8,9 +8,9 @@
 @Observed
 export class FileItem {
   name: string = ''
-  date?: string = ''
-  size?: string = ''
+  size?: number = 0
   path?: string = ''
   isFolder?: boolean = false
-  url?: string = ''
+  ext: string = ''
+  modified?: number = 0
 }

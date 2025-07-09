@@ -126,7 +126,7 @@
                             </button>
 
                             <div class="flex items-center space-x-1 text-sm bg-gray-100 rounded px-2 py-1 path-breadcrumb">
-                                <span class="font-medium text-gray-800">Sandbox</span>
+                                <!-- <span class="font-medium text-gray-800">/</span> -->
                                 <span class="text-gray-500">/</span>
                                 <template v-for="(part, index) in pathParts" :key="index">
                                     <span
@@ -204,8 +204,7 @@
                                             <tr
                                                 v-for="item in filteredItems"
                                                 :key="item.path"
-                                                @click="selectItem(item)"
-                                                @dblclick="item.isFolder ? enterFolder(item.name) : previewFile(item)"
+                                                @click="item.isFolder ? enterFolder(item.name) : previewFile(item)"
                                                 @contextmenu.prevent="showContextMenu($event, item)"
                                                 class="hover:bg-blue-50 cursor-pointer"
                                                 :class="{ 'bg-blue-100': selectedItem && selectedItem.path === item.path }"
@@ -233,8 +232,7 @@
                                     <div
                                         v-for="item in filteredItems"
                                         :key="item.path"
-                                        @click="selectItem(item)"
-                                        @dblclick="item.isFolder ? enterFolder(item.name) : previewFile(item)"
+                                        @click="item.isFolder ? enterFolder(item.name) : previewFile(item)"
                                         @contextmenu.prevent="showContextMenu($event, item)"
                                         class="rounded-lg p-2 border hover:bg-blue-50 cursor-pointer"
                                         :class="{ 'bg-blue-100 border-blue-200': selectedItem && selectedItem.path === item.path }"
@@ -274,7 +272,7 @@
                                         <!-- Video Preview -->
                                         <div v-if="isVideoFile" class="flex items-center justify-center h-full">
                                             <video controls class="max-h-full max-w-full">
-                                                <source :src="fileContent" :type="'video/' + selectedItem.extension" />
+                                                <source :src="fileContent" :type="'video/' + selectedItem.ext" />
                                                 Your browser does not support the video tag.
                                             </video>
                                         </div>
@@ -444,7 +442,7 @@
                     // State
                     const items = ref([])
                     const selectedItem = ref(null)
-                    const currentPath = ref('/Sandbox')
+                    const currentPath = ref('/data/storage')
                     const viewMode = ref('grid')
                     const sortField = ref('name')
                     const sortDirection = ref('asc')
@@ -470,23 +468,18 @@
                     const moveTargetPath = ref('')
                     const allFolders = ref([])
 
-                    // Mock data initialization
-                    const initMockData = () => {
-                        items.value = [
-                            { name: 'Documents', path: '/Sandbox/Documents', size: 0, isFolder: true, modified: '2023-06-15T09:30:00' },
-                            { name: 'Images', path: '/Sandbox/Images', size: 0, isFolder: true, modified: '2023-06-14T15:45:00' },
-                            { name: 'Videos', path: '/Sandbox/Videos', size: 0, isFolder: true, modified: '2023-06-13T11:20:00' },
-                            { name: 'example.txt', path: '/Sandbox/example.txt', size: 1024, isFolder: false, extension: 'txt', modified: '2023-06-12T14:10:00' },
-                            { name: 'sample.jpg', path: '/Sandbox/sample.jpg', size: 2048000, isFolder: false, extension: 'jpg', modified: '2023-06-11T16:55:00' },
-                            { name: 'demo.mp4', path: '/Sandbox/demo.mp4', size: 40960000, isFolder: false, extension: 'mp4', modified: '2023-06-10T08:05:00' },
-                            { name: 'database.db', path: '/Sandbox/database.db', size: 512000, isFolder: false, extension: 'db', modified: '2023-06-09T13:30:00' },
-                            { name: 'notes.sqlite', path: '/Sandbox/notes.sqlite', size: 256000, isFolder: false, extension: 'sqlite', modified: '2023-05-20T10:15:00' },
-                            { name: 'report.pdf', path: '/Sandbox/report.pdf', size: 1536000, isFolder: false, extension: 'pdf', modified: '2023-05-18T17:40:00' },
-                            { name: 'data.json', path: '/Sandbox/data.json', size: 51200, isFolder: false, extension: 'json', modified: '2023-05-15T12:25:00' }
-                        ]
-
-                        // Populate all folders for move dialog
-                        allFolders.value = items.value.filter(item => item.isFolder)
+                    const loadPath = async path => {
+                        try {
+                            const res = await fetch(`http://192.168.2.38:7777/api/ls?path=${encodeURIComponent(path)}`)
+                            if (!res.ok) throw new Error('Failed to fetch directory')
+                            const data = await res.json()
+                            items.value = data
+                            allFolders.value = items.value.filter(item => item.isFolder)
+                        } catch (e) {
+                            console.error('加载目录失败', e)
+                            items.value = []
+                            allFolders.value = []
+                        }
                     }
 
                     // Computed properties
@@ -535,25 +528,25 @@
                     const isTextFile = computed(() => {
                         if (!selectedItem.value) return false
                         const textExtensions = ['txt', 'json', 'xml', 'csv', 'html', 'css', 'js', 'md']
-                        return textExtensions.includes(selectedItem.value.extension)
+                        return textExtensions.includes(selectedItem.value.ext)
                     })
 
                     const isImageFile = computed(() => {
                         if (!selectedItem.value) return false
                         const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'tiff', 'ico', 'heic', 'heif', 'avif', 'raw', 'psd', 'ai', 'eps']
-                        return imageExtensions.includes(selectedItem.value.extension)
+                        return imageExtensions.includes(selectedItem.value.ext)
                     })
 
                     const isVideoFile = computed(() => {
                         if (!selectedItem.value) return false
                         const videoExtensions = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'flv', 'wmv', 'mpeg', 'mpg', '3gp', 'm4v', 'ogv', 'vob', 'ts', 'm2ts', 'mts']
-                        return videoExtensions.includes(selectedItem.value.extension)
+                        return videoExtensions.includes(selectedItem.value.ext)
                     })
 
                     const isSQLiteFile = computed(() => {
                         if (!selectedItem.value) return false
                         const sqliteExtensions = ['db', 'sqlite', 'sqlite3']
-                        return sqliteExtensions.includes(selectedItem.value.extension)
+                        return sqliteExtensions.includes(selectedItem.value.ext)
                     })
 
                     const isUnsupportedFile = computed(() => {
@@ -570,6 +563,7 @@
                         currentPath.value = `${currentPath.value}/${folderName}`.replace('//', '/')
                         selectedItem.value = null
                         isPreviewing.value = false
+                        loadPath(currentPath.value)
                     }
 
                     const navigateTo = index => {
@@ -577,6 +571,7 @@
                         currentPath.value = newPath
                         selectedItem.value = null
                         isPreviewing.value = false
+                        loadPath(currentPath.value)
                     }
 
                     const toggleViewMode = () => {
@@ -607,8 +602,8 @@
                         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
                     }
 
-                    const formatDate = dateString => {
-                        const date = new Date(dateString)
+                    const formatDate = timestmp => {
+                        const date = new Date(timestmp * 1000)
                         return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
                     }
 
@@ -642,7 +637,7 @@
                             sqlite: 'fas fa-database text-yellow-500'
                         }
 
-                        return fileIcons[item.extension] || 'fas fa-file text-gray-500'
+                        return fileIcons[item.ext] || 'fas fa-file text-gray-500'
                     }
 
                     const getFileIconClass = item => {
@@ -739,14 +734,14 @@
 
                         for (let i = 0; i < files.length; i++) {
                             const file = files[i]
-                            const extension = file.name.split('.').pop().toLowerCase()
+                            const ext = file.name.split('.').pop().toLowerCase()
 
                             const newFile = {
                                 name: file.name,
                                 path: currentPath.value + '/' + file.name,
                                 size: file.size,
                                 isFolder: false,
-                                extension: extension,
+                                ext: ext,
                                 modified: new Date(file.lastModified).toISOString()
                             }
 
@@ -870,8 +865,7 @@
 
                     // Lifecycle hooks
                     onMounted(() => {
-                        initMockData()
-
+                        loadPath('/')
                         // Close context menu when pressing Escape
                         document.addEventListener('keydown', e => {
                             if (e.key === 'Escape' && contextMenu.value.visible) {
