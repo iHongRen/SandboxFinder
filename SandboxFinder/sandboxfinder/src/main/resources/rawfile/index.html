@@ -553,15 +553,20 @@
                         isPreviewing.value = false
                     }
 
+                    const isRootPath = path => {
+                        return path == '/data'
+                    }
+
                     const enterFolder = folderName => {
-                        currentPath.value = `${currentPath.value}/${folderName}`.replace('//', '/')
+                        currentPath.value = `${currentPath.value}/${folderName}`.replace(/\/+/g, '/').replace(/\/$/, '')
                         selectedItem.value = null
                         isPreviewing.value = false
                         loadPath(currentPath.value)
                     }
 
                     const navigateTo = index => {
-                        const newPath = '/' + pathParts.value.slice(0, index + 1).join('/')
+                        const parts = pathParts.value.slice(0, index + 1)
+                        const newPath = '/' + parts.join('/')
                         currentPath.value = newPath
                         selectedItem.value = null
                         isPreviewing.value = false
@@ -859,7 +864,7 @@
 
                     // Lifecycle hooks
                     onMounted(() => {
-                        loadPath('/')
+                        loadPath(currentPath.value)
                         // Close context menu when pressing Escape
                         document.addEventListener('keydown', e => {
                             if (e.key === 'Escape' && contextMenu.value.visible) {

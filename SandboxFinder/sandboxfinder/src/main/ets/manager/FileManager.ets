@@ -78,32 +78,32 @@ export class FileManager {
     return false
   }
 
+  private getDefaultItems(subs: string[], dirPath: string): FileItem[] {
+    const fileInfos = subs.map(filename => {
+      const filePath = dirPath + '/' + filename;
+      const item = new FileItem();
+      item.name = filename;
+      item.path = filePath;
+      item.isFolder = true
+      return item;
+    });
+    return fileInfos
+  }
+
   // 列出目录内容（ls）
   public async listDir(dirPath: string): Promise<FileItem[]> {
 
     try {
-      if (dirPath === '' || dirPath === '/' || dirPath === '/data/storage') {
-        const fileInfos = ['el1', 'el2'].map(filename => {
-          const filePath = '/data/storage/' + filename;
-          const item = new FileItem();
-          item.name = filename;
-          item.path = filePath;
-          item.isFolder = true
-          return item;
-        })
-        return fileInfos
+      if (dirPath === '' || dirPath === '/' || dirPath === '/data') {
+        return this.getDefaultItems(['storage'], '/data')
+      }
+
+      if (dirPath === '/data/storage') {
+        return this.getDefaultItems(['el1', 'el2'], dirPath)
       }
 
       if (dirPath === '/data/storage/el1' || dirPath === '/data/storage/el2') {
-        const fileInfos = ['base', 'database'].map(filename => {
-          const filePath = dirPath + '/' + filename;
-          const item = new FileItem();
-          item.name = filename;
-          item.path = filePath;
-          item.isFolder = true
-          return item;
-        });
-        return fileInfos
+        return this.getDefaultItems(['base', 'database'], dirPath)
       }
 
 
