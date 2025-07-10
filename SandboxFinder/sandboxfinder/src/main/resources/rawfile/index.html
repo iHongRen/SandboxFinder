@@ -5,9 +5,10 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>SandboxFinder</title>
         <script src="https://cdn.tailwindcss.com"></script>
-        <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-        <script src="https://cdn.staticfile.net/sql.js/1.6.2/sql-wasm.min.js"></script>
+        <script src="vue3.5.17.js"></script>
+        <script src="sql.js"></script>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
         <style>
             .file-icon {
                 display: inline-flex;
@@ -93,17 +94,16 @@
                     </div>
 
                     <div class="py-2 border-b mb-2">
-                        <div class="flex items-center px-2 py-1 rounded hover:bg-gray-100 cursor-pointer">
-                            <i class="fas fa-desktop mr-2 text-blue-500"></i>
-                            <span>All Files</span>
-                        </div>
-                        <div class="flex items-center px-2 py-1 rounded hover:bg-gray-100 cursor-pointer">
-                            <i class="fas fa-download mr-2 text-green-500"></i>
-                            <span>Downloads</span>
-                        </div>
-                        <div class="flex items-center px-2 py-1 rounded hover:bg-gray-100 cursor-pointer">
-                            <i class="fas fa-images mr-2 text-purple-500"></i>
-                            <span>Pictures</span>
+                        <div class="px-2 py-1 text-xs font-semibold text-gray-500 uppercase">Quick Access</div>
+                        <div
+                            v-for="shortcut in shortcuts"
+                            :key="shortcut.path"
+                            @click="navigateToPath(shortcut.path)"
+                            :class="{ 'bg-blue-50 text-blue-600 font-semibold': currentPath === shortcut.path }"
+                            class="flex items-center px-2 py-1 rounded hover:bg-gray-100 cursor-pointer"
+                        >
+                            <i class="fas fa-folder mr-2 text-blue-500"></i>
+                            <span class="truncate">{{ shortcut.name }}</span>
                         </div>
                     </div>
 
@@ -442,8 +442,9 @@
                     // State
                     const items = ref([])
                     const selectedItem = ref(null)
-                    const currentPath = ref('/data/storage')
-                    const viewMode = ref('grid')
+                    const currentPath = ref('')
+                    const shortcuts = ref([])
+                    const viewMode = ref('list')
                     const sortField = ref('name')
                     const sortDirection = ref('asc')
                     const isPreviewing = ref(false)
@@ -472,7 +473,7 @@
                         try {
                             const formData = new URLSearchParams()
                             formData.append('path', path)
-                            const res = await fetch('http://192.168.2.38:7777/api/ls', {
+                            const res = await fetch('/api/ls', {
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/x-www-form-urlencoded'
@@ -489,6 +490,29 @@
                             allFolders.value = []
                         }
                     }
+
+                    const loadShortcuts = async () => {
+                        try {
+                            const formData = new URLSearchParams();
+                            formData.append('path', '/');
+                            const res = await fetch('/api/ls', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                body: formData.toString()
+                            });
+                            if (!res.ok) throw new Error('Failed to fetch shortcuts');
+                            const data = await res.json();
+                            shortcuts.value = data.filter(item => item.isFolder);
+                            if (shortcuts.value.length > 0) {
+                                navigateToPath(shortcuts.value[0].path);
+                            } else {
+                                navigateToPath('/');
+                            }
+                        } catch (e) {
+                            console.error('Failed to load shortcuts', e);
+                            navigateToPath('/data/storage'); // Fallback
+                        }
+                    };
 
                     // 普通变量替代 computed，手动刷新
                     let filteredItems = ref([])
@@ -509,11 +533,28 @@
                             result = result.filter(item => item.name.toLowerCase().includes(query))
                         }
 
+                        // 排序功能
+                        result = result.slice().sort((a, b) => {
+                            let valA, valB
+                            if (sortField.value === 'size') {
+                                valA = a.size || 0
+                                valB = b.size || 0
+                            } else if (sortField.value === 'modified') {
+                                valA = a.modified || 0
+                            } else {
+                                valA = (a.name || '').toLowerCase()
+                                valB = (b.name || '').toLowerCase()
+                            }
+                            if (valA < valB) return sortDirection.value === 'asc' ? -1 : 1
+                            if (valA > valB) return sortDirection.value === 'asc' ? 1 : -1
+                            return 0
+                        })
+
                         filteredItems.value = result
                     }
 
                     // 监听依赖项变化，手动刷新
-                    watch([items, currentPath, searchQuery], updateFilteredItems, { immediate: true })
+                    watch([items, currentPath, searchQuery, sortField, sortDirection], updateFilteredItems, { immediate: true })
 
                     const pathParts = computed(() => {
                         return currentPath.value.split('/').filter(part => part.trim() !== '')
@@ -557,8 +598,15 @@
                         return path == '/data'
                     }
 
+                    const navigateToPath = path => {
+                        currentPath.value = path
+                        selectedItem.value = null
+                        isPreviewing.value = false
+                        loadPath(currentPath.value)
+                    }
+
                     const enterFolder = folderName => {
-                        currentPath.value = `${currentPath.value}/${folderName}`.replace(/\/+/g, '/').replace(/\/$/, '')
+                        currentPath.value = `${currentPath.value}/${folderName}`.replace(/\/\/+/g, '/').replace(/\/\/$/, '')
                         selectedItem.value = null
                         isPreviewing.value = false
                         loadPath(currentPath.value)
@@ -860,12 +908,14 @@
                         isMovingItem.value = false
                     }
 
+
+
                     // Template ref
                     const fileInput = ref(null)
 
                     // Lifecycle hooks
                     onMounted(() => {
-                        loadPath(currentPath.value)
+                        loadShortcuts()
                         // Close context menu when pressing Escape
                         document.addEventListener('keydown', e => {
                             if (e.key === 'Escape' && contextMenu.value.visible) {
@@ -879,6 +929,7 @@
                         items,
                         selectedItem,
                         currentPath,
+                        shortcuts,
                         viewMode,
                         isPreviewing,
                         isPreviewFullscreen,
@@ -908,6 +959,7 @@
                         isUnsupportedFile,
 
                         // Methods
+                        navigateToPath,
                         selectItem,
                         enterFolder,
                         navigateTo,

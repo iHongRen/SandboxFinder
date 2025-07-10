@@ -27,6 +27,8 @@ export class FileManager {
     const serverPath = context.filesDir + this.serverDir
     this.serverPath = serverPath
     this.initServerDir()
+
+
   }
 
   public getServerPath() {
@@ -36,7 +38,7 @@ export class FileManager {
   private async initServerDir(): Promise<void> {
     try {
       await this.ensureDirectoryExists(this.serverPath)
-      // await this.createFinder()
+      await this.createFinder()
     } catch (error) {
       console.error('初始化根目录失败:', error)
     }
@@ -56,7 +58,10 @@ export class FileManager {
   private async createFinder(): Promise<void> {
     try {
       await this.createFile("index.html")
-      await this.createFile("script.js")
+      await this.createFile("vue3.5.17.js")
+      await this.createFile("sql.js")
+      await this.createFile("fontawesome.css")
+
     } catch (error) {
       console.error('创建沙箱Finder失败:', error)
     }
@@ -90,11 +95,30 @@ export class FileManager {
     return fileInfos
   }
 
+  public contextDirs(): FileItem[] {
+    const dataDir = this.contextFileItem('dataDir', '/data')
+    const filesDir = this.contextFileItem('filesDir', this.context.filesDir)
+    const cacheDir = this.contextFileItem('cacheDir', this.context.cacheDir)
+    const tempDir = this.contextFileItem('tempDir', this.context.tempDir)
+    const databaseDir = this.contextFileItem('databaseDir', this.context.databaseDir)
+    const preferencesDir = this.contextFileItem('preferencesDir', this.context.preferencesDir)
+
+    return [dataDir, filesDir, cacheDir, tempDir, databaseDir, preferencesDir]
+  }
+
+  contextFileItem(name: string, path: string): FileItem {
+    const item = new FileItem();
+    item.name = name;
+    item.path = path;
+    item.isFolder = true;
+    return item
+  }
+
   // 列出目录内容（ls）
   public async listDir(dirPath: string): Promise<FileItem[]> {
 
     try {
-      if (dirPath === '' || dirPath === '/' || dirPath === '/data') {
+      if (dirPath === '' || dirPath === '/data') {
         return this.getDefaultItems(['storage'], '/data')
       }
 
@@ -104,6 +128,10 @@ export class FileManager {
 
       if (dirPath === '/data/storage/el1' || dirPath === '/data/storage/el2') {
         return this.getDefaultItems(['base', 'database'], dirPath)
+      }
+
+      if (dirPath === '/') {
+        return this.contextDirs()
       }
 
 

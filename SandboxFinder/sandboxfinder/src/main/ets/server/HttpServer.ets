@@ -47,7 +47,7 @@ export class HttpServer {
 
       await this.tcpServer.listen(bindAddress);
       // 获取实际的端口和地址
-      // const localAddress: socket.NetAddress = await this.tcpServer.getLocalAddress();
+      const localAddress: socket.NetAddress = await this.tcpServer.getLocalAddress();
       // this.serverPort = localAddress.port || 8080;
       this.serverAddress = this.getLocalIP()
       console.log(`沙盒查看器启动成功，地址: ${this.serverAddress}:${port}`);

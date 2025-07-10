@@ -8,20 +8,22 @@
 
 import fs from '@ohos.file.fs';
 import { buffer, util } from '@kit.ArkTS';
+import { ApiHandler } from './ApiHandler';
 import { ServerInfo } from '../models/ServerInfo';
 import { FileManager } from '../manager/FileManager';
 import { Utils } from '../utils/Utils';
 
 export class RequestHandler {
   private fileManager: FileManager;
-  private serverAddress: string;
-  private serverPort: number;
+  private apiHandler: ApiHandler;
   onFileChanged?: () => void
 
   constructor(fileManager: FileManager, serverInfo: ServerInfo) {
     this.fileManager = fileManager;
-    this.serverAddress = serverInfo.address;
-    this.serverPort = serverInfo.port;
+    this.apiHandler = new ApiHandler(fileManager, serverInfo);
+    this.apiHandler.onFileChanged = () => {
+      this.onFileChanged?.();
+    }
   }
 
   // 解析 HTTP 头部
@@ -66,7 +68,9 @@ export class RequestHandler {
     if (method === 'POST' && contentType && contentType.includes('application/x-www-form-urlencoded')) {
       const bodyStr = requestData.substring(headerBodySplitIndex + 4);
       bodyStr.split('&').forEach(pair => {
-        if (!pair) return;
+        if (!pair) {
+          return;
+        }
         const arr = pair.split('=');
         const k = arr[0];
         const v = arr[1] ? decodeURIComponent(arr[1]) : '';
@@ -83,7 +87,8 @@ export class RequestHandler {
 
     // 处理API请求
     if (url.startsWith('/api/')) {
-      return await this.handleApiRequest(method, url, bodyParams);
+      const result = await this.apiHandler.handleApiRequest(method, url, bodyParams);
+      return this.createHttpResponse(result.code, JSON.stringify(result.data), 'application/json');
     }
 
     // 处理静态文件请求
@@ -215,116 +220,5 @@ export class RequestHandler {
       return responseBuffer.buffer
     }
 
-  }
-
-  // 处理API请求
-  private async handleApiRequest(method: string, url: string,
-    bodyParams: Record<string, Object> = {}): Promise<string | ArrayBuffer> {
-    try {
-      // 1. 获取参数
-      const arr = url.split('?');
-      const pathPart = arr[0]
-      const queryString = arr[1]
-      const params: Record<string, Object> = bodyParams
-      if (queryString) {
-        queryString.split('&').forEach(pair => {
-          const arr = pair.split('=');
-          const k = arr[0]
-          const v = arr[1]
-          params[k] = decodeURIComponent(v);
-        });
-      }
-
-      // 2. 路由API
-      if (pathPart === '/api/server-info') {
-        const serverInfo: ServerInfo = {
-          address: this.serverAddress,
-          port: this.serverPort,
-        };
-        return this.createHttpResponse(200, JSON.stringify(serverInfo), 'application/json');
-      }
-
-      // ls: 列出目录内容
-      if (pathPart === '/api/ls' && method === 'POST') {
-        const dirPath = params['path'] as string || '/';
-        const list = await this.fileManager.listDir(dirPath);
-        return this.createHttpResponse(200, JSON.stringify(list), 'application/json');
-      }
-
-      // touch: 新建空文件
-      if (pathPart === '/api/touch' && method === 'POST') {
-        const filePath = params['path'] as string
-        if (!filePath) {
-          return this.createHttpResponse(400, 'Missing path');
-        }
-        await this.fileManager.writeProjectFile(filePath, new ArrayBuffer(0));
-        this.onFileChanged?.();
-        return this.createHttpResponse(200, JSON.stringify({ success: true }), 'application/json');
-      }
-
-      // rm: 删除文件或目录
-      if (pathPart === '/api/rm' && method === 'POST') {
-        const filePath = params['path'] as string
-        const recursive = params['recursive'] === 'true' || params['recursive'] === true;
-        if (!filePath) {
-          return this.createHttpResponse(400, 'Missing path');
-        }
-        await this.fileManager.remove(filePath, recursive);
-        this.onFileChanged?.();
-        return this.createHttpResponse(200, JSON.stringify({ success: true }), 'application/json');
-      }
-
-      // mv: 重命名/移动
-      if (pathPart === '/api/mv' && method === 'POST') {
-        const src = params['src'] as string
-        const dest = params['dest'] as string
-        if (!src || !dest) {
-          return this.createHttpResponse(400, 'Missing src or dest');
-        }
-        await this.fileManager.move(src, dest);
-        this.onFileChanged?.();
-        return this.createHttpResponse(200, JSON.stringify({ success: true }), 'application/json');
-      }
-
-      // cp: 复制
-      if (pathPart === '/api/cp' && method === 'POST') {
-        const src = params['src'] as string
-        const dest = params['dest'] as string
-        const recursive = params['recursive'] === 'true' || params['recursive'] === true;
-        if (!src || !dest) {
-          return this.createHttpResponse(400, 'Missing src or dest');
-        }
-        await this.fileManager.copy(src, dest, recursive);
-        this.onFileChanged?.();
-        return this.createHttpResponse(200, JSON.stringify({ success: true }), 'application/json');
-      }
-
-      // mkdir: 新建目录
-      if (pathPart === '/api/mkdir' && method === 'POST') {
-        const dirPath = params['path'] as string
-        if (!dirPath) {
-          return this.createHttpResponse(400, 'Missing path');
-        }
-        await this.fileManager.mkdir(dirPath, '');
-        this.onFileChanged?.();
-        return this.createHttpResponse(200, JSON.stringify({ success: true }), 'application/json');
-      }
-
-      // write: 写入/覆盖文件内容
-      // if (pathPart === '/api/write' && method === 'POST') {
-      //   const filePath = params['path'];
-      //   const content = params['content'] || '';
-      //   if (!filePath) {
-      //     return this.createHttpResponse(400, 'Missing path');
-      //   }
-      //   await this.fileManager.writeProjectFile(filePath, Utils.strToUint8Array(content).buffer);
-      //   this.onFileChanged?.();
-      //   return this.createHttpResponse(200, JSON.stringify({ success: true }), 'application/json');
-      // }
-
-      return this.createHttpResponse(404, 'API not found');
-    } catch (error) {
-      return this.createHttpResponse(500, 'Internal Server Error');
-    }
   }
 }
