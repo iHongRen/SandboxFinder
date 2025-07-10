@@ -96,14 +96,18 @@ export class FileManager {
   }
 
   public contextDirs(): FileItem[] {
-    const dataDir = this.contextFileItem('dataDir', '/data')
+    const dataDir = this.contextFileItem('data', '/data')
     const filesDir = this.contextFileItem('filesDir', this.context.filesDir)
     const cacheDir = this.contextFileItem('cacheDir', this.context.cacheDir)
     const tempDir = this.contextFileItem('tempDir', this.context.tempDir)
     const databaseDir = this.contextFileItem('databaseDir', this.context.databaseDir)
     const preferencesDir = this.contextFileItem('preferencesDir', this.context.preferencesDir)
+    const distributedFilesDir = this.contextFileItem('distributedFilesDir', this.context.distributedFilesDir)
+    const cloudFileDir = this.contextFileItem('cloudFileDir', this.context.cloudFileDir)
+    const bundleCodeDir = this.contextFileItem('bundleCodeDir', this.context.bundleCodeDir)
 
-    return [dataDir, filesDir, cacheDir, tempDir, databaseDir, preferencesDir]
+    return [dataDir, filesDir, cacheDir, tempDir, databaseDir, preferencesDir, distributedFilesDir, cloudFileDir,
+      bundleCodeDir]
   }
 
   contextFileItem(name: string, path: string): FileItem {

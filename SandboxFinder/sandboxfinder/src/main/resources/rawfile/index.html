@@ -49,12 +49,7 @@
             }
 
             .path-breadcrumb {
-                white-space: nowrap;
-                overflow-x: auto;
-            }
-
-            .path-breadcrumb::-webkit-scrollbar {
-                height: 2px;
+                flex-wrap: wrap;
             }
 
             .sidebar {
@@ -138,14 +133,9 @@
                             </button>
 
                             <div class="flex items-center space-x-1 text-sm bg-gray-100 rounded px-2 py-1 path-breadcrumb">
-                                <!-- <span class="font-medium text-gray-800">/</span> -->
                                 <span class="text-gray-500">/</span>
                                 <template v-for="(part, index) in pathParts" :key="index">
-                                    <span
-                                        @click="navigateTo(index)"
-                                        class="cursor-pointer hover:text-blue-500 truncate max-w-xs"
-                                        :class="{ 'text-blue-500 font-medium': index === pathParts.length - 1 }"
-                                    >
+                                    <span @click="navigateTo(index)" class="cursor-pointer hover:text-blue-500" :class="{ 'text-blue-500 font-medium': index === pathParts.length - 1 }">
                                         {{ part }}
                                     </span>
                                     <span class="text-gray-500" v-if="index < pathParts.length - 1">/</span>
@@ -221,12 +211,12 @@
                                                 class="hover:bg-blue-50 cursor-pointer"
                                                 :class="{ 'bg-blue-100': selectedItem && selectedItem.path === item.path }"
                                             >
-                                                <td class="px-4 py-2 whitespace-nowrap">
+                                                <td class="px-4 py-2 whitespace-normal">
                                                     <div class="flex items-center">
                                                         <div class="file-icon">
                                                             <i :class="getFileIcon(item)"></i>
                                                         </div>
-                                                        <div class="text-sm font-medium text-gray-600 truncate max-w-xs">
+                                                        <div class="text-sm font-medium text-gray-600">
                                                             {{ item.name }}
                                                             <span v-if="item.isRenaming" class="ml-2 text-blue-500">(renaming...)</span>
                                                         </div>
@@ -253,7 +243,7 @@
                                             <div class="file-icon mb-2">
                                                 <i :class="getFileIcon(item)"></i>
                                             </div>
-                                            <div class="text-xs font-medium text-gray-900 truncate w-full">{{ item.name }}</div>
+                                            <div class="text-xs font-medium text-gray-900 break-words w-full">{{ item.name }}</div>
                                             <div class="text-xs text-gray-500 mt-1">{{ formatFileSize(item.size) }}</div>
                                         </div>
                                     </div>
@@ -346,7 +336,6 @@
 
                                         <div class="flex space-x-2" v-if="isWriteable">
                                             <button @click="downloadFile" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm"><i class="fas fa-download mr-1"></i> Download</button>
-                                            <button @click="renameItem" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm"><i class="fas fa-edit mr-1"></i> Rename</button>
                                             <button @click="deleteItem" class="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 rounded text-sm"><i class="fas fa-trash mr-1"></i> Delete</button>
                                         </div>
                                     </div>
@@ -661,6 +650,7 @@
                     }
 
                     const formatDate = timestmp => {
+                        if (timestmp === 0) return '-'
                         const date = new Date(timestmp * 1000)
                         return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
                     }
