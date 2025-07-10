@@ -85,34 +85,46 @@
         <div id="app">
             <div class="flex h-screen overflow-hidden">
                 <!-- Sidebar -->
-                <div class="sidebar bg-white shadow-md w-64 p-2 border-r" :class="{ 'active': showSidebar }">
-                    <div class="flex items-center justify-between p-2">
-                        <h1 class="text-xl font-bold text-gray-800">SandboxFinder</h1>
-                        <button @click="showSidebar = false" class="md:hidden p-1 rounded hover:bg-gray-200">
-                            <i class="fas fa-times text-gray-600"></i>
-                        </button>
-                    </div>
+                <div class="sidebar bg-white shadow-md w-64 p-2 border-r flex flex-col" :class="{ 'active': showSidebar }">
+                    <div>
+                        <div class="flex items-center justify-between p-2">
+                            <h1 class="text-xl font-bold text-gray-800">SandboxFinder</h1>
+                            <button @click="showSidebar = false" class="md:hidden p-1 rounded hover:bg-gray-200">
+                                <i class="fas fa-times text-gray-600"></i>
+                            </button>
+                        </div>
 
-                    <div class="py-2 border-b mb-2">
-                        <div class="px-2 py-1 text-xs font-semibold text-gray-500 uppercase">Quick Access</div>
-                        <div
-                            v-for="shortcut in shortcuts"
-                            :key="shortcut.path"
-                            @click="navigateToPath(shortcut.path)"
-                            :class="{ 'bg-blue-50 text-blue-600 font-semibold': currentPath === shortcut.path }"
-                            class="flex items-center px-2 py-1 rounded hover:bg-gray-100 cursor-pointer"
-                        >
-                            <i class="fas fa-folder mr-2 text-blue-500"></i>
-                            <span class="truncate">{{ shortcut.name }}</span>
+                        <div class="py-2 border-b mb-2">
+                            <div class="px-2 py-1 text-xs font-semibold text-gray-500 uppercase">快速访问</div>
+                            <div
+                                v-for="shortcut in shortcuts"
+                                :key="shortcut.path"
+                                @click="navigateToPath(shortcut.path)"
+                                :class="{ 'bg-blue-50 text-blue-600 font-semibold': currentPath === shortcut.path }"
+                                class="flex items-center px-2 py-1 rounded hover:bg-gray-100 cursor-pointer text-gray-600"
+                            >
+                                <i class="fas fa-folder mr-2 text-blue-500"></i>
+                                <span class="truncate">{{ shortcut.name }}</span>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="p-2">
-                        <div class="text-xs font-semibold text-gray-500 mb-1">STORAGE</div>
-                        <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
-                            <div class="bg-blue-500 h-2 rounded-full" style="width: 65%"></div>
+                    <div class="mt-auto p-2 border-t">
+                        <div class="py-1 text-xs font-semibold text-gray-500 uppercase">关于</div>
+                        <div class="text-xs text-gray-600 space-y-1 mt-2">
+                            <div class="flex items-center">
+                                <i class="fas fa-info-circle mr-2 text-gray-500"></i>
+                                <span>版本: 1.0.0</span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-user mr-2 text-gray-500"></i>
+                                <span>作者: @仙银</span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fab fa-github mr-2 text-gray-500"></i>
+                                <a href="https://github.com/iHongRen" target="_blank" class="hover:text-blue-500">https://github.com/iHongRen</a>
+                            </div>
                         </div>
-                        <div class="text-xs text-gray-600"><span class="font-medium">15.2 GB</span> used of 128 GB</div>
                     </div>
                 </div>
 
@@ -165,7 +177,7 @@
                             <div class="w-1/2 border-r overflow-y-auto p-2 bg-white" v-if="!isPreviewFullscreen">
                                 <div class="flex items-center justify-between mb-2 px-1">
                                     <h3 class="font-medium text-gray-700">{{ filteredItems.length }} items</h3>
-                                    <div class="flex space-x-1">
+                                    <div class="flex space-x-1" v-if="isWriteable">
                                         <button @click="createNewFolder" class="p-1 rounded hover:bg-gray-200" title="New Folder">
                                             <i class="fas fa-folder-plus text-blue-500"></i>
                                         </button>
@@ -211,10 +223,10 @@
                                             >
                                                 <td class="px-4 py-2 whitespace-nowrap">
                                                     <div class="flex items-center">
-                                                        <div class="file-icon mr-2">
+                                                        <div class="file-icon">
                                                             <i :class="getFileIcon(item)"></i>
                                                         </div>
-                                                        <div class="text-sm font-medium text-gray-900 truncate max-w-xs">
+                                                        <div class="text-sm font-medium text-gray-600 truncate max-w-xs">
                                                             {{ item.name }}
                                                             <span v-if="item.isRenaming" class="ml-2 text-blue-500">(renaming...)</span>
                                                         </div>
@@ -332,7 +344,7 @@
                                             <p>Path: {{ currentPath }}/{{ selectedItem.name }}</p>
                                         </div>
 
-                                        <div class="flex space-x-2">
+                                        <div class="flex space-x-2" v-if="isWriteable">
                                             <button @click="downloadFile" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm"><i class="fas fa-download mr-1"></i> Download</button>
                                             <button @click="renameItem" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm"><i class="fas fa-edit mr-1"></i> Rename</button>
                                             <button @click="deleteItem" class="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 rounded text-sm"><i class="fas fa-trash mr-1"></i> Delete</button>
@@ -357,31 +369,29 @@
                 :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
                 @click.stop
             >
-                <div v-if="contextMenu.item.isFolder" @click="enterFolder(contextMenu.item.name); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
-                    <i class="fas fa-folder-open mr-2 text-blue-500"></i>
-                    Open
-                </div>
-                <div v-if="!contextMenu.item.isFolder" @click="previewFile(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
+                <!-- <div v-if="!contextMenu.item.isFolder" @click="previewFile(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
                     <i class="fas fa-eye mr-2 text-purple-500"></i>
                     Preview
-                </div>
-                <div @click="downloadItem(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
+                </div> -->
+                <div v-if="!contextMenu.item.isFolder" @click="downloadItem(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
                     <i class="fas fa-download mr-2 text-green-500"></i>
                     Download
                 </div>
-                <div @click="initiateRename(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
-                    <i class="fas fa-pencil-alt mr-2 text-yellow-500"></i>
-                    Rename
-                </div>
-                <div @click="showMoveDialog(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
-                    <i class="fas fa-arrows-alt mr-2 text-blue-500"></i>
-                    Move
-                </div>
-                <div class="border-t my-1"></div>
-                <div @click="deleteItem(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center text-red-500">
-                    <i class="fas fa-trash mr-2"></i>
-                    Delete
-                </div>
+                <template v-if="isWriteable">
+                    <div @click="initiateRename(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
+                        <i class="fas fa-pencil-alt mr-2 text-yellow-500"></i>
+                        Rename
+                    </div>
+                    <!-- <div @click="showMoveDialog(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
+                        <i class="fas fa-arrows-alt mr-2 text-blue-500"></i>
+                        Move
+                    </div> -->
+                    <div class="border-t my-1"></div>
+                    <div @click="deleteItem(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center text-red-500">
+                        <i class="fas fa-trash mr-2"></i>
+                        Delete
+                    </div>
+                </template>
             </div>
 
             <!-- New Folder Dialog -->
@@ -469,6 +479,12 @@
                     const moveTargetPath = ref('')
                     const allFolders = ref([])
 
+                    const isWriteable = computed(() => {
+                        if (!currentPath.value) return false
+                        const depth = currentPath.value.split('/').filter(p => p).length
+                        return depth >= 5
+                    })
+
                     const loadPath = async path => {
                         try {
                             const formData = new URLSearchParams()
@@ -493,26 +509,26 @@
 
                     const loadShortcuts = async () => {
                         try {
-                            const formData = new URLSearchParams();
-                            formData.append('path', '/');
+                            const formData = new URLSearchParams()
+                            formData.append('path', '/')
                             const res = await fetch('/api/ls', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                                 body: formData.toString()
-                            });
-                            if (!res.ok) throw new Error('Failed to fetch shortcuts');
-                            const data = await res.json();
-                            shortcuts.value = data.filter(item => item.isFolder);
+                            })
+                            if (!res.ok) throw new Error('Failed to fetch shortcuts')
+                            const data = await res.json()
+                            shortcuts.value = data.filter(item => item.isFolder)
                             if (shortcuts.value.length > 0) {
-                                navigateToPath(shortcuts.value[0].path);
+                                navigateToPath(shortcuts.value[0].path)
                             } else {
-                                navigateToPath('/');
+                                navigateToPath('/')
                             }
                         } catch (e) {
-                            console.error('Failed to load shortcuts', e);
-                            navigateToPath('/data/storage'); // Fallback
+                            console.error('Failed to load shortcuts', e)
+                            navigateToPath('/data/storage') // Fallback
                         }
-                    };
+                    }
 
                     // 普通变量替代 computed，手动刷新
                     let filteredItems = ref([])
@@ -908,8 +924,6 @@
                         isMovingItem.value = false
                     }
 
-
-
                     // Template ref
                     const fileInput = ref(null)
 
@@ -957,6 +971,7 @@
                         isVideoFile,
                         isSQLiteFile,
                         isUnsupportedFile,
+                        isWriteable,
 
                         // Methods
                         navigateToPath,
