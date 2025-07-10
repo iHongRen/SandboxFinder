@@ -847,6 +847,9 @@
                     }
 
                     const showContextMenu = (event, item) => {
+                        const hasMenuItems = !item.isFolder || isWriteable.value;
+                        if (!hasMenuItems) return;
+
                         contextMenu.value = {
                             visible: true,
                             x: event.clientX,
