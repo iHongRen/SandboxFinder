@@ -158,7 +158,7 @@
                                 <input
                                     type="text"
                                     v-model="searchQuery"
-                                    placeholder="Search..."
+                                    placeholder="搜索..."
                                     class="pl-8 pr-4 py-1 border rounded-full text-sm focus:outline-none focus:ring-1 focus:ring-blue-300 focus:border-blue-300"
                                 />
                                 <i class="fas fa-search absolute left-3 top-2 text-gray-400"></i>
@@ -174,7 +174,7 @@
                     <div class="flex-1 overflow-hidden">
                         <div class="flex h-full">
                             <!-- File List -->
-                            <div class="w-1/2 border-r overflow-y-auto p-2 bg-white" v-if="!isPreviewFullscreen">
+                            <div :class="['overflow-y-auto p-2 bg-white', isPreviewing ? 'w-1/2 border-r' : 'w-full']">
                                 <div class="flex items-center justify-between mb-2 px-1">
                                     <h3 class="font-medium text-gray-700">{{ filteredItems.length }} items</h3>
                                     <div class="flex space-x-1" v-if="isWriteable">
@@ -194,19 +194,19 @@
                                             <tr>
                                                 <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" @click="sortBy('name')">
                                                     <div class="flex items-center">
-                                                        Name
+                                                        名称
                                                         <i class="fas ml-1" :class="sortIcon('name')"></i>
                                                     </div>
                                                 </th>
                                                 <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" @click="sortBy('size')">
                                                     <div class="flex items-center">
-                                                        Size
+                                                        大小
                                                         <i class="fas ml-1" :class="sortIcon('size')"></i>
                                                     </div>
                                                 </th>
                                                 <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" @click="sortBy('modified')">
                                                     <div class="flex items-center">
-                                                        Modified
+                                                        修改时间
                                                         <i class="fas ml-1" :class="sortIcon('modified')"></i>
                                                     </div>
                                                 </th>
@@ -261,12 +261,12 @@
                             </div>
 
                             <!-- Preview Panel -->
-                            <div class="flex-1 overflow-y-auto bg-gray-50 p-4" :class="{ 'w-full': isPreviewFullscreen, 'w-1/2': !isPreviewFullscreen }" v-if="selectedItem && !isCreatingFolder">
-                                <div v-if="isPreviewing">
+                            <div class="flex-1 overflow-y-auto bg-gray-50 p-4" v-if="isPreviewing">
+                                <div v-if="selectedItem">
                                     <div class="flex justify-between items-center mb-4">
                                         <h3 class="text-lg font-semibold text-gray-800">Preview: {{ selectedItem.name }}</h3>
-                                        <button @click="toggleFullscreen" class="p-1 rounded hover:bg-gray-200">
-                                            <i class="fas" :class="isPreviewFullscreen ? 'fa-compress' : 'fa-expand'"></i>
+                                        <button @click="isPreviewing = false" class="p-1 rounded hover:bg-gray-200">
+                                            <i class="fas fa-times"></i>
                                         </button>
                                     </div>
 
@@ -350,11 +350,6 @@
                                             <button @click="deleteItem" class="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 rounded text-sm"><i class="fas fa-trash mr-1"></i> Delete</button>
                                         </div>
                                     </div>
-                                </div>
-
-                                <div v-else class="flex flex-col items-center justify-center h-full text-gray-500">
-                                    <i class="fas fa-file-alt text-4xl mb-4"></i>
-                                    <p class="text-lg">Select a file to preview</p>
                                 </div>
                             </div>
                         </div>
