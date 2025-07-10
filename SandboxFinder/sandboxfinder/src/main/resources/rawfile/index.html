@@ -82,15 +82,12 @@
                 <!-- Sidebar -->
                 <div class="sidebar bg-white shadow-md w-64 p-2 border-r flex flex-col" :class="{ 'active': showSidebar }">
                     <div>
-                        <div class="flex items-center justify-between p-2">
+                        <div class="flex items-center justify-between p-1">
                             <h1 class="text-xl font-bold text-gray-800">SandboxFinder</h1>
-                            <button @click="showSidebar = false" class="md:hidden p-1 rounded hover:bg-gray-200">
-                                <i class="fas fa-times text-gray-600"></i>
-                            </button>
                         </div>
+                        <div class="px-1 text-sm text-gray-500">{{ appInfo.bundleName }}</div>
 
                         <div class="py-2 border-b mb-2">
-                            <div class="px-2 py-1 text-xs font-semibold text-gray-500 uppercase">快速访问</div>
                             <div
                                 v-for="shortcut in shortcuts"
                                 :key="shortcut.path"
@@ -438,6 +435,7 @@
                     const selectedItem = ref(null)
                     const currentPath = ref('')
                     const shortcuts = ref([])
+                    const appInfo = ref({})
                     const viewMode = ref('list')
                     const sortField = ref('name')
                     const sortDirection = ref('asc')
@@ -511,6 +509,16 @@
                         } catch (e) {
                             console.error('Failed to load shortcuts', e)
                             navigateToPath('/data/storage') // Fallback
+                        }
+                    }
+
+                    const loadAppInfo = async () => {
+                        try {
+                            const res = await fetch('/api/app-info')
+                            if (!res.ok) throw new Error('Failed to fetch app info')
+                            appInfo.value = await res.json()
+                        } catch (e) {
+                            console.error('Failed to load app info', e)
                         }
                     }
 
@@ -650,7 +658,6 @@
                     }
 
                     const formatDate = timestmp => {
-                        if (timestmp === 0) return '-'
                         const date = new Date(timestmp * 1000)
                         return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
                     }
@@ -847,14 +854,14 @@
                     }
 
                     const showContextMenu = (event, item) => {
-                        const hasMenuItems = !item.isFolder || isWriteable.value;
-                        if (!hasMenuItems) return;
+                        const hasMenuItems = !item.isFolder || isWriteable.value
+                        if (!hasMenuItems) return
 
                         contextMenu.value = {
-                            visible: true,
-                            x: event.clientX,
-                            y: event.clientY,
-                            item: item
+                            visible: false,
+                            x: 0,
+                            y: 0,
+                            item: null
                         }
                         // 先移除旧监听，避免重复
                         document.removeEventListener('click', closeContextMenu)
@@ -918,6 +925,7 @@
                     // Lifecycle hooks
                     onMounted(() => {
                         loadShortcuts()
+                        loadAppInfo()
                         // Close context menu when pressing Escape
                         document.addEventListener('keydown', e => {
                             if (e.key === 'Escape' && contextMenu.value.visible) {
@@ -932,6 +940,7 @@
                         selectedItem,
                         currentPath,
                         shortcuts,
+                        appInfo,
                         viewMode,
                         isPreviewing,
                         isPreviewFullscreen,

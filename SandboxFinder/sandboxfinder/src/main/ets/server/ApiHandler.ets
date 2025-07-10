@@ -8,8 +8,11 @@
 import { ServerInfo } from '../models/ServerInfo';
 import { FileManager } from '../manager/FileManager';
 import { Response } from './Response';
+import { bundleManager } from "@kit.AbilityKit";
+
 
 export class ApiHandler {
+  private bundleInfo = bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT)
   private fileManager: FileManager;
   private serverAddress: string;
   private serverPort: number;
@@ -24,7 +27,7 @@ export class ApiHandler {
   public async handleApiRequest(method: string, url: string,
     bodyParams: Record<string, Object> = {}): Promise<Response> {
     try {
-      // 1. 获取参数
+      // 获取参数
       const arr = url.split('?');
       const pathPart = arr[0]
       const queryString = arr[1]
@@ -38,7 +41,7 @@ export class ApiHandler {
         });
       }
 
-      // 2. 路由API
+      // 服务器信息
       if (pathPart === '/api/server-info') {
         const serverInfo: ServerInfo = {
           address: this.serverAddress,
@@ -47,6 +50,17 @@ export class ApiHandler {
         return {
           code: 200,
           data: serverInfo
+        }
+      }
+
+      if (pathPart === '/api/app-info') {
+        return {
+          code: 200,
+          data: {
+            versionCode: this.bundleInfo.versionCode,
+            versionName: this.bundleInfo.versionName,
+            bundleName: this.bundleInfo.name,
+          }
         }
       }
 
