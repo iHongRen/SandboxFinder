@@ -841,19 +841,23 @@
                     }
 
                     const confirmCreateFolder = () => {
-                        if (!newFolderName.value.trim()) return
-
-                        const newFolder = {
-                            name: newFolderName.value,
-                            path: currentPath.value + '/' + newFolderName.value,
-                            size: 0,
-                            isFolder: true,
-                            modified: new Date().toISOString()
-                        }
-
-                        items.value.push(newFolder)
-                        allFolders.value.push(newFolder)
-                        isCreatingFolder.value = false
+                        const name = newFolderName.value.trim()
+                        if (!name) return
+                        const path = (currentPath.value + '/' + name).replace(/\/+/g, '/').replace(/\/\$/, '')
+                        const formData = new URLSearchParams()
+                        formData.append('path', path)
+                        safeFetch('/api/mkdir', { body: formData.toString() })
+                            .then(result => {
+                                if (result.code === 200) {
+                                    loadPath(currentPath.value)
+                                    isCreatingFolder.value = false
+                                } else {
+                                    showError('新建文件夹失败：' + (result?.message || result))
+                                }
+                            })
+                            .catch(e => {
+                                showError('新建文件夹失败：' + (e?.message || e))
+                            })
                     }
 
                     const uploadFile = () => {
