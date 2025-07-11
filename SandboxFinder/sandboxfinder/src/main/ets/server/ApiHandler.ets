@@ -113,15 +113,18 @@ export class ApiHandler {
     return { code: 200, data: { success: true } };
   }
 
+  // 支持项目重命名的 mv
   async mv(params: Record<string, Object>): Promise<Response> {
     const src = params['src'] as string;
     const dest = params['dest'] as string;
+    const isRename = params['rename'] === 'true';
     if (!src || !dest) {
       return { code: 400, message: 'Missing src or dest' };
     }
+    // 如果是项目重命名，可以在这里加特殊处理（如日志、校验等）
     await this.fileManager.move(src, dest);
     this.onFileChanged?.();
-    return { code: 200, data: { success: true } };
+    return { code: 200, data: { success: true, rename: isRename } };
   }
 
   async cp(params: Record<string, Object>): Promise<Response> {

@@ -863,6 +863,7 @@
                         isRenamingItem.value = true
                     }
 
+                    // 项目重命名功能
                     const confirmRename = async () => {
                         if (!itemToRename.value || !newItemName.value.trim() || newItemName.value.trim() === itemToRename.value.name) {
                             isRenamingItem.value = false
@@ -876,6 +877,7 @@
                             const formData = new URLSearchParams()
                             formData.append('src', oldPath)
                             formData.append('dest', newPath)
+                            formData.append('rename', 'true') // 标记为重命名操作
                             const res = await fetch('/api/mv', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

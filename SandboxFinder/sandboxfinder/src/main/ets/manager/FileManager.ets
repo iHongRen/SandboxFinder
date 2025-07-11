@@ -154,11 +154,10 @@ export class FileManager {
 
   // 新建空文件（touch）
   public async touch(filePath: string): Promise<void> {
-    const absPath = filePath.startsWith('/') ? filePath : this.serverPath + '/' + filePath;
-    const dirPath = absPath.substring(0, absPath.lastIndexOf('/'));
+    const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
     await this.ensureDirectoryExists(dirPath);
     const file =
-      await fileIo.open(absPath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
+      await fileIo.open(filePath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
     await fileIo.close(file.fd);
   }
 
@@ -174,23 +173,20 @@ export class FileManager {
 
   // 重命名/移动（mv）
   public async move(src: string, dest: string): Promise<void> {
-    const absSrc = src.startsWith('/') ? src : this.serverPath + '/' + src;
-    const absDest = dest.startsWith('/') ? dest : this.serverPath + '/' + dest;
-    await fileIo.rename(absSrc, absDest);
+
+    await fileIo.rename(src, dest);
   }
 
   // 复制文件或目录（cp）
   public async copy(src: string, dest: string, recursive: boolean = false): Promise<void> {
-    const absSrc = src.startsWith('/') ? src : this.serverPath + '/' + src;
-    const absDest = dest.startsWith('/') ? dest : this.serverPath + '/' + dest;
-    const stat = await fileIo.stat(absSrc);
+    const stat = await fileIo.stat(src);
     if (stat.isDirectory()) {
       if (!recursive) {
         throw new Error('目录复制需 recursive=true');
       }
-      await this.copyDirectory(absSrc, absDest);
+      await this.copyDirectory(src, dest);
     } else {
-      await this.copyFile(absSrc, absDest);
+      await this.copyFile(src, dest);
     }
   }
 
@@ -226,11 +222,10 @@ export class FileManager {
 
   // 写入/覆盖文件内容（write）
   public async writeFile(filePath: string, content: ArrayBuffer): Promise<void> {
-    const absPath = filePath.startsWith('/') ? filePath : this.serverPath + '/' + filePath;
-    const dirPath = absPath.substring(0, absPath.lastIndexOf('/'));
+    const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
     await this.ensureDirectoryExists(dirPath);
     const file =
-      await fileIo.open(absPath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
+      await fileIo.open(filePath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
     await fileIo.write(file.fd, content);
     await fileIo.close(file.fd);
   }
