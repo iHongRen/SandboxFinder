@@ -284,63 +284,37 @@
                                     </div>
 
                                     <div class="preview-container rounded-lg bg-white shadow border overflow-auto">
-                                        <!-- Text Preview -->
-                                        <div v-if="isTextFile" class="p-4">
+                                        <!-- 新预览逻辑：后端type统一，支持文本/媒体/其他 -->
+                                        <div v-if="previewType === 'text'" class="p-4">
                                             <pre class="whitespace-pre-wrap font-mono text-sm">{{ fileContent }}</pre>
                                         </div>
-
-                                        <!-- Image Preview -->
-                                        <div v-if="isImageFile" class="flex items-center justify-center h-full">
-                                            <img :src="fileContent" :alt="selectedItem.name" class="max-h-full max-w-full" />
-                                        </div>
-
-                                        <!-- Video Preview -->
-                                        <div v-if="isVideoFile" class="flex items-center justify-center h-full">
-                                            <video controls class="max-h-full max-w-full">
-                                                <source :src="fileContent" :type="'video/' + selectedItem.ext" />
-                                                您的浏览器不支持 video 标签。
-                                            </video>
-                                        </div>
-
-                                        <!-- SQLite Preview -->
-                                        <div v-if="isSQLiteFile" class="p-4">
-                                            <div v-if="sqliteTables.length > 0">
-                                                <div class="flex items-center justify-between mb-4">
-                                                    <div class="flex space-x-2">
-                                                        <button
-                                                            v-for="table in sqliteTables"
-                                                            @click="currentSQLiteTable = table"
-                                                            class="px-3 py-1 rounded text-sm"
-                                                            :class="{ 'bg-blue-500 text-white': currentSQLiteTable === table, 'bg-gray-200 hover:bg-gray-300': currentSQLiteTable !== table }"
-                                                        >
-                                                            {{ table }}
-                                                        </button>
-                                                    </div>
-                                                    <span class="text-sm text-gray-500">{{ sqliteData.length }} 行</span>
+                                        <div v-else-if="previewType === 'media'">
+                                            <template v-if="previewMediaKind === 'image'">
+                                                <div class="flex items-center justify-center h-full">
+                                                    <img :src="previewUrl" :alt="selectedItem.name" class="max-h-full max-w-full" />
                                                 </div>
-
-                                                <div class="overflow-auto">
-                                                    <table class="min-w-full divide-y divide-gray-200">
-                                                        <thead class="bg-gray-50">
-                                                            <tr>
-                                                                <th v-for="column in sqliteColumns" scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                                    {{ column }}
-                                                                </th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody class="bg-white divide-y divide-gray-200">
-                                                            <tr v-for="row in sqliteData" :key="row.id">
-                                                                <td v-for="column in sqliteColumns" class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{{ row[column] || 'NULL' }}</td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
+                                            </template>
+                                            <template v-else-if="previewMediaKind === 'video'">
+                                                <div class="flex items-center justify-center h-full">
+                                                    <video controls class="max-h-full max-w-full">
+                                                        <source :src="previewUrl" />
+                                                        您的浏览器不支持 video 标签。
+                                                    </video>
                                                 </div>
-                                            </div>
-                                            <div v-else class="text-gray-500 text-center py-8">此 SQLite 数据库中没有找到任何表。</div>
+                                            </template>
+                                            <template v-else-if="previewMediaKind === 'audio'">
+                                                <div class="flex items-center justify-center h-full">
+                                                    <audio controls class="w-full">
+                                                        <source :src="previewUrl" />
+                                                        您的浏览器不支持 audio 标签。
+                                                    </audio>
+                                                </div>
+                                            </template>
+                                            <template v-else>
+                                                <div class="text-gray-500 text-center py-8">暂不支持此媒体类型预览</div>
+                                            </template>
                                         </div>
-
-                                        <!-- Unsupported File Type -->
-                                        <div v-if="isUnsupportedFile" class="flex flex-col items-center justify-center h-full text-gray-500 p-8">
+                                        <div v-else-if="previewType === 'other'" class="flex flex-col items-center justify-center h-full text-gray-500 p-8">
                                             <i class="fas fa-file-exclamation text-4xl mb-4"></i>
                                             <p class="text-lg">此文件类型不支持预览</p>
                                             <button @click="downloadFile" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
@@ -779,17 +753,37 @@
                         return 'file-icon-other'
                     }
 
+                    // 统一后端type判断，支持文本/媒体/其他
+                    const previewType = ref('') // text/media/other
+                    const previewUrl = ref('')
+                    const previewMediaKind = ref('') // image/video/audio
                     const previewFile = async item => {
                         selectedItem.value = item
                         isPreviewing.value = true
                         fileContent.value = ''
-
+                        previewType.value = ''
+                        previewUrl.value = ''
+                        previewMediaKind.value = ''
                         try {
                             const formData = new URLSearchParams()
                             formData.append('path', item.path)
                             const result = await safeFetch('/api/read', { body: formData.toString() })
-                            if (result.code === 200 && result.data !== undefined) {
-                                fileContent.value = result.data
+                            if (result.code === 200 && result.data) {
+                                const data = result.data
+                                if (data.type === 'text') {
+                                    previewType.value = 'text'
+                                    fileContent.value = data.content
+                                } else if (data.type === 'media') {
+                                    previewType.value = 'media'
+                                    previewUrl.value = data.url
+                                    previewMediaKind.value = data.mediaKind || ''
+                                } else if (data.type === 'other') {
+                                    previewType.value = 'other'
+                                    previewUrl.value = data.url
+                                } else {
+                                    previewType.value = ''
+                                    fileContent.value = '不支持的文件类型'
+                                }
                             } else {
                                 showError('文件预览失败：' + (result?.message || '未知错误'))
                                 fileContent.value = 'Error loading file content.'
@@ -813,9 +807,6 @@
                         document.body.appendChild(link)
                         link.click()
                         document.body.removeChild(link)
-
-                        // Show a notification (would be better with a proper notification system)
-                        alert('Download started for ' + selectedItem.value.name)
                     }
 
                     const createNewFolder = () => {
@@ -1005,7 +996,6 @@
                             allFolders.value = items.value.filter(item => item.isFolder)
                         }
 
-                        alert(`Moved "${itemToMove.value.name}" from ${oldPath} to ${newPath}`)
                         isMovingItem.value = false
                     }
 
@@ -1061,11 +1051,9 @@
                         // Computed
                         pathParts,
                         filteredItems,
-                        isTextFile,
-                        isImageFile,
-                        isVideoFile,
-                        isSQLiteFile,
-                        isUnsupportedFile,
+                        previewType,
+                        previewUrl,
+                        previewMediaKind,
                         isWriteable,
 
                         // Methods

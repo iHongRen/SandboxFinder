@@ -83,8 +83,62 @@ export class ApiHandler {
     if (!filePath) {
       return { code: 400, message: 'Missing path' };
     }
-    const content = this.fileManager.readFile(filePath)
-    return { code: 200, data: { content, type: 'text' } };
+    // 获取文件扩展名和MIME类型
+    const ext = this.fileManager.getExtension(filePath);
+    const contentType = this.fileManager.getContentType(filePath);
+
+    // 纯文本类型
+    if (this.fileManager.isPlainText(filePath)) {
+      const content = await this.fileManager.readFile(filePath);
+      return {
+        code: 200,
+        data: {
+          type: 'text',
+          content
+        }
+      };
+    }
+
+    // 媒体类型（图片/音频/视频）
+    if (contentType.startsWith('image/')) {
+      return {
+        code: 200,
+        data: {
+          type: 'media',
+          url: `/static${filePath}`,
+          mediaKind: 'image'
+        }
+      };
+    }
+    if (contentType.startsWith('video/')) {
+      return {
+        code: 200,
+        data: {
+          type: 'media',
+          url: `/static${filePath}`,
+          mediaKind: 'video'
+        }
+      };
+    }
+    if (contentType.startsWith('audio/')) {
+      return {
+        code: 200,
+        data: {
+          type: 'media',
+          url: `/static${filePath}`,
+          mediaKind: 'audio'
+        }
+      };
+    }
+
+    // 其他类型，返回可下载直链
+    return {
+      code: 200,
+      data: {
+        type: 'other',
+        url: `/static${filePath}`
+      }
+    };
   }
 
   async ls(params: Record<string, Object>): Promise<Response> {
