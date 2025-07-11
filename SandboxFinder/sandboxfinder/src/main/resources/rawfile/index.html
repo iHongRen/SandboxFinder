@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>SandboxFinder</title>
+        <title>沙盒文件浏览器</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <script src="vue3.5.17.js"></script>
         <script src="sql.js"></script>
@@ -83,7 +83,7 @@
                 <div class="sidebar bg-white shadow-md w-64 p-2 border-r flex flex-col" :class="{ 'active': showSidebar }">
                     <div>
                         <div class="flex items-center justify-between p-2">
-                            <h1 class="text-xl font-bold text-gray-800">SandboxFinder</h1>
+                            <h1 class="text-xl font-bold text-gray-800">沙盒文件浏览器</h1>
                             <button @click="showSidebar = false" class="md:hidden p-1 rounded hover:bg-gray-200">
                                 <i class="fas fa-times text-gray-600"></i>
                             </button>
@@ -103,7 +103,7 @@
                             </div>
                         </div>
                         <div class="py-2 border-b mb-2">
-                            <div class="px-2 py-1 text-xs font-semibold text-gray-500 uppercase">App Info</div>
+                            <div class="px-2 py-1 text-xs font-semibold text-gray-500 uppercase">应用信息</div>
                             <div class="text-xs text-gray-600 space-y-1 mt-2 px-2">
                                 <div class="flex items-center">
                                     <i class="fas fa-info-circle mr-2 text-gray-500"></i>
@@ -183,12 +183,12 @@
                             <!-- File List -->
                             <div :class="['overflow-y-auto p-2 bg-white', isPreviewing ? 'w-1/2 border-r' : 'w-full']">
                                 <div class="flex items-center justify-between mb-2 px-1">
-                                    <h3 class="font-medium text-gray-700">{{ filteredItems.length }} items</h3>
+                                    <h3 class="font-medium text-gray-700">{{ filteredItems.length }} 个项目</h3>
                                     <div class="flex space-x-1" v-if="isWriteable">
-                                        <button @click="createNewFolder" class="p-1 rounded hover:bg-gray-200" title="New Folder">
+                                        <button @click="createNewFolder" class="p-1 rounded hover:bg-gray-200" title="新建文件夹">
                                             <i class="fas fa-folder-plus text-blue-500"></i>
                                         </button>
-                                        <button @click="uploadFile" class="p-1 rounded hover:bg-gray-200" title="Upload File">
+                                        <button @click="uploadFile" class="p-1 rounded hover:bg-gray-200" title="上传文件">
                                             <i class="fas fa-file-upload text-green-500"></i>
                                         </button>
                                     </div>
@@ -235,7 +235,7 @@
                                                         </div>
                                                         <div class="text-sm font-medium text-gray-600">
                                                             {{ item.name }}
-                                                            <span v-if="item.isRenaming" class="ml-2 text-blue-500">(renaming...)</span>
+                                                            <span v-if="item.isRenaming" class="ml-2 text-blue-500">(重命名中...)</span>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -271,7 +271,7 @@
                             <div class="flex-1 overflow-y-auto bg-gray-50 p-4" v-if="isPreviewing">
                                 <div v-if="selectedItem">
                                     <div class="flex justify-between items-center mb-4">
-                                        <h3 class="text-lg font-semibold text-gray-800">Preview: {{ selectedItem.name }}</h3>
+                                        <h3 class="text-lg font-semibold text-gray-800">预览: {{ selectedItem.name }}</h3>
                                         <button @click="isPreviewing = false" class="p-1 rounded hover:bg-gray-200">
                                             <i class="fas fa-times"></i>
                                         </button>
@@ -292,7 +292,7 @@
                                         <div v-if="isVideoFile" class="flex items-center justify-center h-full">
                                             <video controls class="max-h-full max-w-full">
                                                 <source :src="fileContent" :type="'video/' + selectedItem.ext" />
-                                                Your browser does not support the video tag.
+                                                您的浏览器不支持 video 标签。
                                             </video>
                                         </div>
 
@@ -310,7 +310,7 @@
                                                             {{ table }}
                                                         </button>
                                                     </div>
-                                                    <span class="text-sm text-gray-500">{{ sqliteData.length }} rows</span>
+                                                    <span class="text-sm text-gray-500">{{ sqliteData.length }} 行</span>
                                                 </div>
 
                                                 <div class="overflow-auto">
@@ -330,30 +330,30 @@
                                                     </table>
                                                 </div>
                                             </div>
-                                            <div v-else class="text-gray-500 text-center py-8">No tables found in this SQLite database.</div>
+                                            <div v-else class="text-gray-500 text-center py-8">此 SQLite 数据库中没有找到任何表。</div>
                                         </div>
 
                                         <!-- Unsupported File Type -->
                                         <div v-if="isUnsupportedFile" class="flex flex-col items-center justify-center h-full text-gray-500 p-8">
                                             <i class="fas fa-file-exclamation text-4xl mb-4"></i>
-                                            <p class="text-lg">Preview not available for this file type</p>
+                                            <p class="text-lg">此文件类型不支持预览</p>
                                             <button @click="downloadFile" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
                                                 <i class="fas fa-download mr-2"></i>
-                                                Download File
+                                                下载文件
                                             </button>
                                         </div>
                                     </div>
 
                                     <div class="mt-4 flex justify-between items-center">
                                         <div class="text-sm text-gray-500">
-                                            <p>Size: {{ formatFileSize(selectedItem.size) }}</p>
-                                            <p>Modified: {{ formatDate(selectedItem.modified) }}</p>
-                                            <p>Path: {{ currentPath }}/{{ selectedItem.name }}</p>
+                                            <p>大小: {{ formatFileSize(selectedItem.size) }}</p>
+                                            <p>修改时间: {{ formatDate(selectedItem.modified) }}</p>
+                                            <p>路径: {{ currentPath }}/{{ selectedItem.name }}</p>
                                         </div>
 
                                         <div class="flex space-x-2" v-if="isWriteable">
-                                            <button @click="downloadFile" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm"><i class="fas fa-download mr-1"></i> Download</button>
-                                            <button @click="deleteItem(selectedItem)" class="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 rounded text-sm"><i class="fas fa-trash mr-1"></i> Delete</button>
+                                            <button @click="downloadFile" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm"><i class="fas fa-download mr-1"></i> 下载</button>
+                                            <button @click="deleteItem(selectedItem)" class="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 rounded text-sm"><i class="fas fa-trash mr-1"></i> 删除</button>
                                         </div>
                                     </div>
                                 </div>
@@ -372,25 +372,25 @@
             >
                 <!-- <div v-if="!contextMenu.item.isFolder" @click="previewFile(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
                     <i class="fas fa-eye mr-2 text-purple-500"></i>
-                    Preview
+                    预览
                 </div> -->
                 <div v-if="!contextMenu.item.isFolder" @click="downloadItem(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
                     <i class="fas fa-download mr-2 text-green-500"></i>
-                    Download
+                    下载
                 </div>
                 <template v-if="isWriteable">
                     <div @click="initiateRename(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
                         <i class="fas fa-pencil-alt mr-2 text-yellow-500"></i>
-                        Rename
+                        重命名
                     </div>
                     <!-- <div @click="showMoveDialog(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
                         <i class="fas fa-arrows-alt mr-2 text-blue-500"></i>
-                        Move
+                        移动
                     </div> -->
                     <div class="border-t my-1"></div>
                     <div @click="deleteItem(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center text-red-500">
                         <i class="fas fa-trash mr-2"></i>
-                        Delete
+                        删除
                     </div>
                 </template>
             </div>
@@ -398,17 +398,17 @@
             <!-- New Folder Dialog -->
             <div v-if="isCreatingFolder" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                 <div class="bg-white rounded-lg shadow-xl p-4 w-96">
-                    <h3 class="text-lg font-semibold mb-4">New Folder</h3>
+                    <h3 class="text-lg font-semibold mb-4">新建文件夹</h3>
                     <input
                         v-model="newFolderName"
                         @keyup.enter="confirmCreateFolder"
                         type="text"
-                        placeholder="Folder name"
+                        placeholder="文件夹名称"
                         class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-1 focus:ring-blue-300"
                     />
                     <div class="flex justify-end mt-4 space-x-2">
-                        <button @click="isCreatingFolder = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
-                        <button @click="confirmCreateFolder" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Create</button>
+                        <button @click="isCreatingFolder = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">取消</button>
+                        <button @click="confirmCreateFolder" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">创建</button>
                     </div>
                 </div>
             </div>
@@ -416,17 +416,17 @@
             <!-- Rename Dialog -->
             <div v-if="isRenamingItem" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                 <div class="bg-white rounded-lg shadow-xl p-4 w-96">
-                    <h3 class="text-lg font-semibold mb-4">Rename "{{ itemToRename.name }}"</h3>
+                    <h3 class="text-lg font-semibold mb-4">重命名 "{{ itemToRename.name }}"</h3>
                     <input
                         v-model="newItemName"
                         @keyup.enter="confirmRename"
                         type="text"
-                        placeholder="New name"
+                        placeholder="新名称"
                         class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-1 focus:ring-blue-300"
                     />
                     <div class="flex justify-end mt-4 space-x-2">
-                        <button @click="isRenamingItem = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
-                        <button @click="confirmRename" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Rename</button>
+                        <button @click="isRenamingItem = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">取消</button>
+                        <button @click="confirmRename" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">重命名</button>
                     </div>
                 </div>
             </div>
@@ -434,11 +434,11 @@
             <!-- Delete Confirmation Dialog -->
             <div v-if="isDeletingItem" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                 <div class="bg-white rounded-lg shadow-xl p-4 w-96">
-                    <h3 class="text-lg font-semibold mb-4">Delete Confirmation</h3>
-                    <p>Are you sure you want to delete "{{ itemToDelete.name }}"?</p>
+                    <h3 class="text-lg font-semibold mb-4">删除确认</h3>
+                    <p>您确定要删除 "{{ itemToDelete.name }}" 吗？</p>
                     <div class="flex justify-end mt-4 space-x-2">
-                        <button @click="isDeletingItem = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
-                        <button @click="confirmDelete" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">Delete</button>
+                        <button @click="isDeletingItem = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">取消</button>
+                        <button @click="confirmDelete" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">删除</button>
                     </div>
                 </div>
             </div>
@@ -446,11 +446,11 @@
             <!-- Move Dialog -->
             <div v-if="isMovingItem" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                 <div class="bg-white rounded-lg shadow-xl p-4 w-96 max-h-[80vh] flex flex-col">
-                    <h3 class="text-lg font-semibold mb-4">Move "{{ itemToMove.name }}"</h3>
+                    <h3 class="text-lg font-semibold mb-4">移动 "{{ itemToMove.name }}"</h3>
                     <div class="flex-1 overflow-y-auto mb-4 border rounded p-2">
                         <div class="flex items-center hover:bg-gray-100 p-1 rounded cursor-pointer" @click="moveTargetPath = ''">
                             <i class="fas fa-home mr-2 text-blue-500"></i>
-                            <span>Root</span>
+                            <span>根目录</span>
                         </div>
 
                         <div
@@ -465,8 +465,8 @@
                         </div>
                     </div>
                     <div class="flex justify-end space-x-2">
-                        <button @click="isMovingItem = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
-                        <button @click="confirmMoveItem" :disabled="!moveTargetPath" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50">Move</button>
+                        <button @click="isMovingItem = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">取消</button>
+                        <button @click="confirmMoveItem" :disabled="!moveTargetPath" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50">移动</button>
                     </div>
                 </div>
             </div>
