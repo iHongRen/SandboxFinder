@@ -8,6 +8,8 @@
 import { zlib } from '@kit.BasicServicesKit'
 import { fileIo } from '@kit.CoreFileKit'
 import { FileItem } from '../models/FileItem'
+import { util } from '@kit.ArkTS'
+import { Utils } from '../utils/Utils'
 
 class SandboxDir {
   static el1 = '/data/storage/el1'
@@ -27,8 +29,6 @@ export class FileManager {
     const serverPath = context.filesDir + this.serverDir
     this.serverPath = serverPath
     this.initServerDir()
-
-
   }
 
   public getServerPath() {
@@ -149,7 +149,7 @@ export class FileManager {
         item.size = stat.size
         item.modified = stat.mtime
         item.isFolder = stat.isDirectory();
-        item.ext = item.isFolder ? '' : (filename.split('.')?.pop()?.toLowerCase() || '');
+        item.ext = item.isFolder ? '' :  this.getExtension(filePath)
         return item;
       }));
 
@@ -263,6 +263,23 @@ export class FileManager {
       await fileIo.open(absPath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
     await fileIo.write(file.fd, content);
     await fileIo.close(file.fd);
+  }
+
+  // 读文本文件
+  public async readFile(filePath: string): Promise<string> {
+    // 判断是否是文本文件，不光是txt,html，css,js，还需要其他的文本文件判断
+
+
+    const ext = this.getExtension(filePath)
+   
+
+    const file = await fileIo.open(filePath, fileIo.OpenMode.READ_ONLY);
+    const stat = await fileIo.stat(filePath);
+    const buffer = new ArrayBuffer(stat.size);
+    await fileIo.read(file.fd, buffer);
+    await fileIo.close(file.fd);
+    const content = Utils.uint8ToStr(new Uint8Array(buffer))
+    return content
   }
 
   canMkdir(path: string): boolean {
@@ -392,8 +409,7 @@ export class FileManager {
 
   // 根据文件扩展名获取Content-Type
   public getContentType(filePath: string): string {
-    const extMatch = filePath.match(/\.([^./]+)$/)
-    const ext = extMatch?.[1]?.toLowerCase() || ''
+    const ext = this.getExtension(filePath)
 
     const contentTypeMap: Record<string, string> = {
       // 文本类型
@@ -461,5 +477,22 @@ export class FileManager {
     const index = Math.floor(Math.log(size) / Math.log(1024))
     const value = size / Math.pow(1024, index)
     return `${value.toFixed(2)} ${units[index]}`
+  }
+
+  getExtension(filePath: string): string {
+    const ext = filePath.split('.').pop()?.toLowerCase() || ''
+    return ext
+  }
+
+  isPlainText(filePath: string): boolean {
+    const ext = this.getExtension(filePath)
+    const plainTextExtensions = [
+      'txt', 'html', 'css', 'js', 'json', 'xml', 'md', 'vue', 'ts', 'jsx', 'tsx', 
+      'scss', 'sass', 'less', 'ets', 'php', 'py', 'rb', 'java', 'c', 'cpp', 'h', 'hpp',
+      'go', 'rs', 'swift', 'kt', 'scala', 'clj', 'cljs', 'erl', 'hs', 'purs', 'ml', 'mli', 
+      'fs', 'fsi', 'ada', 'd', 'dart', 'elixir', 'ex', 'exs', 'jl', 'm', 'mm', 'pde', 'pl', 
+      'pm', 'r', 'sml'
+    ]
+    return plainTextExtensions.includes(ext)
   }
 }

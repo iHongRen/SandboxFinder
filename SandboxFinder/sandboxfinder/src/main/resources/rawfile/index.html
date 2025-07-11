@@ -705,38 +705,27 @@
                         return 'file-icon-other'
                     }
 
-                    const previewFile = item => {
+                    const previewFile = async item => {
                         selectedItem.value = item
                         isPreviewing.value = true
-                        isPreviewFullscreen.value = false
+                        fileContent.value = ''
 
-                        // Mock file content based on file type
-                        if (isTextFile.value) {
-                            fileContent.value =
-                                'This is a sample text content for the file: ' +
-                                item.name +
-                                '\n\n' +
-                                'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam euismod ' +
-                                'nisl non nisi ultricies, vitae convallis libero tincidunt. Fusce auctor ' +
-                                'erat non nisl accumsan, ac ultrices tortor commodo.'
-                        } else if (isImageFile.value) {
-                            // Use a placeholder image
-                            fileContent.value = 'https://via.placeholder.com/800x600.png?text=' + encodeURIComponent(item.name)
-                        } else if (isVideoFile.value) {
-                            // Use a sample video (replace with your own or use a placeholder)
-                            fileContent.value = 'https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4'
-                        } else if (isSQLiteFile.value) {
-                            // Mock SQLite data
-                            sqliteTables.value = ['users', 'products', 'orders']
-                            currentSQLiteTable.value = 'users'
-                            sqliteColumns.value = ['id', 'name', 'email']
-                            sqliteData.value = [
-                                { id: 1, name: 'John Doe', email: 'john@example.com' },
-                                { id: 2, name: 'Jane Smith', email: 'jane@example.com' },
-                                { id: 3, name: 'Bob Johnson', email: 'bob@example.com' }
-                            ]
-                        } else {
-                            fileContent.value = ''
+                        try {
+                            const formData = new URLSearchParams()
+                            formData.append('path', item.path)
+                            const res = await fetch('/api/read', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded'
+                                },
+                                body: formData.toString()
+                            });
+                            if (!res.ok) throw new Error('Failed to fetch file content');
+                            const data = await res.json();
+                            fileContent.value = data.content;
+                        } catch (e) {
+                            console.error('Failed to load file content', e);
+                            fileContent.value = 'Error loading file content.';
                         }
                     }
 

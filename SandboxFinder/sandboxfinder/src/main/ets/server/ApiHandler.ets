@@ -9,6 +9,8 @@ import { ServerInfo } from '../models/ServerInfo';
 import { FileManager } from '../manager/FileManager';
 import { Response } from './Response';
 import { bundleManager } from "@kit.AbilityKit";
+import fs from '@ohos.file.fs';
+import { util } from '@kit.ArkTS';
 
 
 export class ApiHandler {
@@ -61,6 +63,29 @@ export class ApiHandler {
             versionName: this.bundleInfo.versionName,
             bundleName: this.bundleInfo.name,
           }
+        }
+      }
+
+      // read: 读取文件内容
+      if (pathPart === '/api/read') {
+        const filePath = params['path'] as string;
+        if (!filePath) {
+          return {
+            code: 400,
+            message: 'Missing path'
+          }
+        }
+        const file = await fs.open(filePath, fs.OpenMode.READ_ONLY);
+        const stat = await fs.stat(filePath);
+        const buffer = new ArrayBuffer(stat.size);
+        await fs.read(file.fd, buffer);
+        await fs.close(file.fd);
+
+        const textDecoder = util.TextDecoder.create('utf-8');
+        const content = textDecoder.decodeToString(new Uint8Array(buffer));
+        return {
+          code: 200,
+          data: { content: content, type: 'text' }
         }
       }
 
