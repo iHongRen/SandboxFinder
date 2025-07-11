@@ -17,10 +17,19 @@ class SandboxDir {
   static distributedfiles = '/distributedfiles'
 }
 
+interface LRUCacheEntry {
+  filePath: string
+  cachePath: string
+  lastAccess: number
+}
+
 export class FileManager {
   private serverDir = '/sandboxfinder-static-server'
+  private staticDir = '/static'
   private serverPath: string
   private context: Context
+  private lruCache: Map<string, LRUCacheEntry> = new Map()
+  private maxCacheCount = 10 // 最大缓存数
 
   constructor(context: Context) {
     this.context = context
@@ -37,19 +46,77 @@ export class FileManager {
     try {
       await this.ensureDirectoryExists(this.serverPath)
       await this.createServerFiles()
+      await this.ensureDirectoryExists(this.serverPath + this.staticDir)
     } catch (error) {
       console.error('初始化根目录失败:', error)
     }
   }
 
+  // 获取缓存文件路径（原文件名，需编码）
+  private getCacheFileName(filePath: string): string {
+    // 只取文件名部分，并进行 URI 编码，防止中文/空格/特殊字符问题
+    const rawName = filePath.split('/').pop() || 'file';
+    return encodeURIComponent(rawName);
+  }
+
+  // LRU缓存：获取或拷贝到缓存，并返回缓存路径（原文件名，重名直接覆盖）
+  public async getOrCacheFile(filePath: string): Promise<string> {
+    const cacheFileName = this.getCacheFileName(filePath)
+    const staticPath = this.staticDir + '/' + cacheFileName
+    const cachePath = this.serverPath + staticPath
+    const now = Date.now()
+    // 命中缓存（同路径）
+    if (this.lruCache.has(filePath)) {
+      const entry = this.lruCache.get(filePath)!
+      entry.lastAccess = now
+      this.lruCache.delete(filePath)
+      this.lruCache.set(filePath, entry)
+      return staticPath
+    }
+    // 若缓存目录下已有同名文件但filePath不同，先删掉旧缓存
+    for (const entry of this.lruCache.entries()) {
+      const key = entry[0]
+      const value = entry[1]
+      // 只比对缓存文件名部分（已编码）
+      if (value.cachePath.endsWith('/' + cacheFileName) && key !== filePath) {
+        try {
+          await fileIo.unlink(value.cachePath)
+        } catch {}
+        this.lruCache.delete(key)
+        break
+      }
+    }
+    // 拷贝到缓存（覆盖）
+    await this.copyFile(filePath, cachePath)
+    this.lruCache.set(filePath, { filePath, cachePath, lastAccess: now })
+    // 超出最大缓存，LRU淘汰
+    if (this.lruCache.size > this.maxCacheCount) {
+      // 找到最久未访问
+      let oldestKey = ''
+      let oldestTime = now
+      for (const entry of this.lruCache.entries()) {
+        const key = entry[0]
+        const value = entry[1]
+        if (value.lastAccess < oldestTime) {
+          oldestTime = value.lastAccess
+          oldestKey = key
+        }
+      }
+      if (oldestKey) {
+        const oldEntry = this.lruCache.get(oldestKey)!
+        try {
+          await fileIo.unlink(oldEntry.cachePath)
+        } catch {
+        }
+        this.lruCache.delete(oldestKey)
+      }
+    }
+    return staticPath
+  }
+
   // 检查文件是否存在
   public async checkFileExists(path: string): Promise<boolean> {
-    try {
-      await fileIo.stat(path)
-      return true
-    } catch {
-      return false
-    }
+    return await fileIo.access(path)
   }
 
   // 创建沙箱Finder

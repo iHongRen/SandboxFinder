@@ -210,7 +210,7 @@ export class RequestHandler {
   private async handleStaticFileRequest(url: string): Promise<string | ArrayBuffer> {
     try {
       let filePath = url === '/' ? '/index.html' : url;
-      filePath = this.fileManager.getServerPath() + filePath.replace(/\.\./g, '');
+      filePath = this.fileManager.getServerPath() + filePath;
 
       // 检查文件是否存在
       const exists = await this.fileManager.checkFileExists(filePath);

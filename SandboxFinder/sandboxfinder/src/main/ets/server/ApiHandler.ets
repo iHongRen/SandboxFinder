@@ -94,18 +94,28 @@ export class ApiHandler {
         code: 200,
         data: {
           type: 'text',
-          content
+          content: content
         }
       };
     }
 
-    // 媒体类型（图片/音频/视频）
+    // 需要静态直链的类型（媒体/其他）
+    let url = ''
+    if (filePath.startsWith(this.fileManager.getServerPath())) {
+      // 已在静态目录
+      url = `${filePath.substring(this.fileManager.getServerPath().length)}`
+    } else {
+      // 拷贝到缓存，使用原文件名
+      const staticPath = await this.fileManager.getOrCacheFile(filePath)
+      url = staticPath
+    }
+
     if (contentType.startsWith('image/')) {
       return {
         code: 200,
         data: {
           type: 'media',
-          url: `/static${filePath}`,
+          url: url,
           mediaKind: 'image'
         }
       };
@@ -115,7 +125,7 @@ export class ApiHandler {
         code: 200,
         data: {
           type: 'media',
-          url: `/static${filePath}`,
+          url: url,
           mediaKind: 'video'
         }
       };
@@ -125,7 +135,7 @@ export class ApiHandler {
         code: 200,
         data: {
           type: 'media',
-          url: `/static${filePath}`,
+          url: url,
           mediaKind: 'audio'
         }
       };
@@ -136,7 +146,7 @@ export class ApiHandler {
       code: 200,
       data: {
         type: 'other',
-        url: `/static${filePath}`
+        url: url
       }
     };
   }
