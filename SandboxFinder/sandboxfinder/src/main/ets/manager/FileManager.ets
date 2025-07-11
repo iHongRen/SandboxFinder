@@ -36,7 +36,7 @@ export class FileManager {
   private async initServerDir(): Promise<void> {
     try {
       await this.ensureDirectoryExists(this.serverPath)
-      await this.createFinder()
+      await this.createServerFiles()
     } catch (error) {
       console.error('初始化根目录失败:', error)
     }
@@ -53,19 +53,19 @@ export class FileManager {
   }
 
   // 创建沙箱Finder
-  private async createFinder(): Promise<void> {
+  private async createServerFiles(): Promise<void> {
     try {
-      await this.createFile("index.html")
-      await this.createFile("vue3.5.17.js")
-      await this.createFile("sql.js")
-      await this.createFile("fontawesome.css")
+      await this.createServerFile("index.html")
+      await this.createServerFile("vue3.5.17.js")
+      await this.createServerFile("sql.js")
+      await this.createServerFile("fontawesome.css")
 
     } catch (error) {
       console.error('创建沙箱Finder失败:', error)
     }
   }
 
-  private async createFile(fileName: string) {
+  private async createServerFile(fileName: string) {
     const path = this.serverPath + '/' + fileName
     const buf = await this.context.resourceManager.getRawFileContent(fileName)
     const outFile = await fileIo.open(path, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC)
@@ -173,7 +173,6 @@ export class FileManager {
 
   // 重命名/移动（mv）
   public async move(src: string, dest: string): Promise<void> {
-
     await fileIo.rename(src, dest);
   }
 
