@@ -843,14 +843,19 @@
                     }
 
                     const showContextMenu = (event, item) => {
-                        const hasMenuItems = !item.isFolder || isWriteable.value
-                        if (!hasMenuItems) return
+                        const isFile = !item.isFolder;
+                        const isWriteableFolder = item.isFolder && isWriteable.value;
+
+                        if (!isFile && !isWriteableFolder) {
+                            const downloadAllowed = !item.isFolder;
+                            if(!downloadAllowed) return
+                        }
 
                         contextMenu.value = {
-                            visible: false,
-                            x: 0,
-                            y: 0,
-                            item: null
+                            visible: true,
+                            x: event.clientX,
+                            y: event.clientY,
+                            item: item
                         }
                         // 先移除旧监听，避免重复
                         document.removeEventListener('click', closeContextMenu)
