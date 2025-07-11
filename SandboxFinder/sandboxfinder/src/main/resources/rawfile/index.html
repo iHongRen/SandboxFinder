@@ -148,11 +148,7 @@
                             <div class="flex items-center space-x-1 text-sm bg-gray-100 rounded px-2 py-1 path-breadcrumb">
                                 <span class="text-gray-500">/</span>
                                 <template v-for="(part, index) in pathParts" :key="index">
-                                    <span
-                                        @click="navigateTo(index)"
-                                        class="cursor-pointer hover:text-blue-500"
-                                        :class="{ 'text-blue-500 font-medium': index === pathParts.length - 1 }"
-                                    >
+                                    <span @click="navigateTo(index)" class="cursor-pointer hover:text-blue-500" :class="{ 'text-blue-500 font-medium': index === pathParts.length - 1 }">
                                         {{ part }}
                                     </span>
                                     <span class="text-gray-500" v-if="index < pathParts.length - 1">/</span>
@@ -353,7 +349,9 @@
 
                                         <div class="flex space-x-2" v-if="isWriteable">
                                             <button @click="downloadFile" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm"><i class="fas fa-download mr-1"></i> 下载</button>
-                                            <button @click="deleteItem(selectedItem)" class="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 rounded text-sm"><i class="fas fa-trash mr-1"></i> 删除</button>
+                                            <button @click="deleteItem(selectedItem)" class="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 rounded text-sm">
+                                                <i class="fas fa-trash mr-1"></i> 删除
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -569,13 +567,13 @@
 
                     const loadAppInfo = async () => {
                         try {
-                            const res = await fetch('/api/app-info');
-                            if (!res.ok) throw new Error('Failed to fetch app info');
-                            appInfo.value = await res.json();
+                            const res = await fetch('/api/app-info')
+                            if (!res.ok) throw new Error('Failed to fetch app info')
+                            appInfo.value = await res.json()
                         } catch (e) {
-                            console.error('Failed to load app info', e);
+                            console.error('Failed to load app info', e)
                         }
-                    };
+                    }
 
                     // 普通变量替代 computed，手动刷新
                     let filteredItems = ref([])
@@ -774,13 +772,13 @@
                                     'Content-Type': 'application/x-www-form-urlencoded'
                                 },
                                 body: formData.toString()
-                            });
-                            if (!res.ok) throw new Error('Failed to fetch file content');
-                            const data = await res.json();
-                            fileContent.value = data.content;
+                            })
+                            if (!res.ok) throw new Error('Failed to fetch file content')
+                            const data = await res.json()
+                            fileContent.value = data.content
                         } catch (e) {
-                            console.error('Failed to load file content', e);
-                            fileContent.value = 'Error loading file content.';
+                            console.error('Failed to load file content', e)
+                            fileContent.value = 'Error loading file content.'
                         }
                     }
 
@@ -828,114 +826,120 @@
                         fileInput.value.click()
                     }
 
-                    const handleFileUpload = event => {
+                    const handleFileUpload = async event => {
                         const files = event.target.files
+                        if (files.length === 0) return
 
                         for (let i = 0; i < files.length; i++) {
                             const file = files[i]
-                            const ext = file.name.split('.').pop().toLowerCase()
+                            const formData = new FormData()
+                            formData.append('file', file)
+                            formData.append('filename', file.name)
+                            try {
+                                formData.append('path', currentPath.value)
+                                const res = await fetch('/api/upload', {
+                                    method: 'POST',
+                                    body: formData
+                                })
 
-                            const newFile = {
-                                name: file.name,
-                                path: currentPath.value + '/' + file.name,
-                                size: file.size,
-                                isFolder: false,
-                                ext: ext,
-                                modified: new Date(file.lastModified).toISOString()
+                                if (!res.ok) throw new Error(`Failed to upload ${file.name}`)
+                                console.log(`${file.name} uploaded successfully`)
+                            } catch (e) {
+                                console.error(`Error uploading ${file.name}:`, e)
+                                alert(`Error uploading ${file.name}: ${e.message}`)
                             }
-
-                            items.value.push(newFile)
                         }
 
+                        // Refresh file list after upload
+                        await loadPath(currentPath.value)
                         // Reset file input
                         event.target.value = ''
                     }
 
                     const renameItem = item => {
-                        itemToRename.value = item || selectedItem.value;
-                        if (!itemToRename.value) return;
-                        newItemName.value = itemToRename.value.name;
-                        isRenamingItem.value = true;
-                    };
+                        itemToRename.value = item || selectedItem.value
+                        if (!itemToRename.value) return
+                        newItemName.value = itemToRename.value.name
+                        isRenamingItem.value = true
+                    }
 
                     const confirmRename = async () => {
                         if (!itemToRename.value || !newItemName.value.trim() || newItemName.value.trim() === itemToRename.value.name) {
-                            isRenamingItem.value = false;
-                            return;
+                            isRenamingItem.value = false
+                            return
                         }
 
-                        const oldPath = itemToRename.value.path;
-                        const newPath = oldPath.substring(0, oldPath.lastIndexOf('/') + 1) + newItemName.value.trim();
+                        const oldPath = itemToRename.value.path
+                        const newPath = oldPath.substring(0, oldPath.lastIndexOf('/') + 1) + newItemName.value.trim()
 
                         try {
-                            const formData = new URLSearchParams();
-                            formData.append('src', oldPath);
-                            formData.append('dest', newPath);
+                            const formData = new URLSearchParams()
+                            formData.append('src', oldPath)
+                            formData.append('dest', newPath)
                             const res = await fetch('/api/mv', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                                 body: formData.toString()
-                            });
-                            if (!res.ok) throw new Error('Failed to rename item');
-                            await loadPath(currentPath.value);
+                            })
+                            if (!res.ok) throw new Error('Failed to rename item')
+                            await loadPath(currentPath.value)
                         } catch (e) {
-                            console.error('Failed to rename item', e);
-                            alert('Error: Could not rename the item.');
+                            console.error('Failed to rename item', e)
+                            alert('Error: Could not rename the item.')
                         }
 
-                        isRenamingItem.value = false;
-                        itemToRename.value = null;
-                        newItemName.value = '';
-                    };
+                        isRenamingItem.value = false
+                        itemToRename.value = null
+                        newItemName.value = ''
+                    }
 
                     const deleteItem = item => {
-                        itemToDelete.value = item || selectedItem.value;
-                        if (!itemToDelete.value) return;
-                        isDeletingItem.value = true;
-                    };
+                        itemToDelete.value = item || selectedItem.value
+                        if (!itemToDelete.value) return
+                        isDeletingItem.value = true
+                    }
 
                     const confirmDelete = async () => {
                         if (!itemToDelete.value) {
-                            isDeletingItem.value = false;
-                            return;
+                            isDeletingItem.value = false
+                            return
                         }
 
                         try {
-                            const formData = new URLSearchParams();
-                            formData.append('path', itemToDelete.value.path);
-                            formData.append('recursive', 'true');
+                            const formData = new URLSearchParams()
+                            formData.append('path', itemToDelete.value.path)
+                            formData.append('recursive', 'true')
 
                             const res = await fetch('/api/rm', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                                 body: formData.toString()
-                            });
+                            })
 
-                            if (!res.ok) throw new Error('Failed to delete item');
+                            if (!res.ok) throw new Error('Failed to delete item')
 
-                            await loadPath(currentPath.value);
+                            await loadPath(currentPath.value)
 
                             if (selectedItem.value && selectedItem.value.path === itemToDelete.value.path) {
-                                selectedItem.value = null;
-                                isPreviewing.value = false;
+                                selectedItem.value = null
+                                isPreviewing.value = false
                             }
-
                         } catch (e) {
-                            console.error('Failed to delete item', e);
-                            alert('Error: Could not delete the item.');
+                            console.error('Failed to delete item', e)
+                            alert('Error: Could not delete the item.')
                         } finally {
-                            isDeletingItem.value = false;
-                            itemToDelete.value = null;
+                            isDeletingItem.value = false
+                            itemToDelete.value = null
                         }
-                    };
+                    }
 
                     const showContextMenu = (event, item) => {
-                        const isFile = !item.isFolder;
-                        const isWriteableFolder = item.isFolder && isWriteable.value;
+                        const isFile = !item.isFolder
+                        const isWriteableFolder = item.isFolder && isWriteable.value
 
                         if (!isFile && !isWriteableFolder) {
-                            const downloadAllowed = !item.isFolder;
-                            if(!downloadAllowed) return
+                            const downloadAllowed = !item.isFolder
+                            if (!downloadAllowed) return
                         }
 
                         contextMenu.value = {

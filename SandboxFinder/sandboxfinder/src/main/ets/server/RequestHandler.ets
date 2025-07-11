@@ -80,8 +80,8 @@ export class RequestHandler {
 
     if (contentType?.includes('multipart/form-data')) {
       // 处理文件上传
-      if (url === '/api/upload' && method === 'POST') {
-        return await this.handleMultipart(data, contentType)
+      if (url.startsWith('/api/upload') && method === 'POST') {
+        return await this.handleMultipart(data, contentType, url)
       }
     }
 
@@ -95,7 +95,7 @@ export class RequestHandler {
     return await this.handleStaticFileRequest(url);
   }
 
-  private async handleMultipart(data: Uint8Array, contentType: string): Promise<string | ArrayBuffer> {
+  private async handleMultipart(data: Uint8Array, contentType: string, url: string): Promise<string | ArrayBuffer> {
 
     const boundary = this.extractBoundary(contentType);
     const formData = await this.parseMultipartFormData(data, boundary);
@@ -103,10 +103,11 @@ export class RequestHandler {
     // 获取文件和文件名
     const fileData = formData.get('file') as ArrayBuffer;
     const fileName = formData.get('filename') as string;
+    const path = formData.get('path') as string || '';
 
     if (fileData && fileName) {
       try {
-        await this.fileManager.writeProjectFile(fileName, fileData);
+        await this.fileManager.writeFile(`${path}/${fileName}`, fileData);
         this.onFileChanged?.()
         return this.createHttpResponse(200, JSON.stringify({ success: true }), 'application/json');
       } catch (err) {
@@ -117,48 +118,88 @@ export class RequestHandler {
     return this.createHttpResponse(500, 'failed');
   }
 
-  // 解析 multipart/form-data
-  private async parseMultipartFormData(data: Uint8Array,
-    boundary: string): Promise<Map<string, string | ArrayBuffer>> {
+  private splitMultipartData(data: Uint8Array, boundary: string): Uint8Array[] {
+    const boundaryBytes = Utils.strToUint8Array(`--${boundary}`);
+    const parts: Uint8Array[] = [];
+    let startIndex = 0;
 
-    const formData = new Map<string, string | ArrayBuffer>();
-    if (!boundary) {
-      return formData;
+    while (true) {
+      const endIndex = this.findBoundary(data, boundaryBytes, startIndex);
+      if (endIndex === -1) {
+        break;
+      }
+
+      if (endIndex > startIndex) {
+        parts.push(data.slice(startIndex, endIndex));
+      }
+      startIndex = endIndex + boundaryBytes.length + 2; // +2 for CRLF
     }
-
-    const buff = buffer.from(data)
-
-    // 构建boundary标记
-    const boundaryPrefix = `--${boundary}`;
-    const boundarySuffix = `--${boundary}--`;
-
-    const preBuffer = buffer.from(boundaryPrefix);
-
-    // 查找文件内容的起始和结束位置
-    const startIndex = buff.indexOf(boundaryPrefix) + preBuffer.length;
-    const endIndex = buff.indexOf(boundarySuffix, startIndex)
-
-    if (startIndex === -1 || endIndex === -1) {
-      return formData;
-    }
-
-    // 提取文件部分
-    const filePart = buff.subarray(startIndex, endIndex);
-
-    // 查找文件名
-    const filenameStart = filePart.indexOf('filename="') + 10;
-    const filenameEnd = filePart.indexOf('"', filenameStart);
-    const filename = filePart.toString('utf8', filenameStart, filenameEnd);
-
-    // 查找文件内容的起始位置 (跳过头部)
-    const contentStart = filePart.indexOf('\r\n\r\n') + 4;
-    const content = filePart.subarray(contentStart);
-    formData.set('file', content.buffer);
-    formData.set('filename', filename);
-
-    return formData;
+    return parts.filter(part => part.length > 0);
   }
 
+  private findBoundary(data: Uint8Array, boundary: Uint8Array, start: number): number {
+    for (let i = start; i <= data.length - boundary.length; i++) {
+      let match = true;
+      for (let j = 0; j < boundary.length; j++) {
+        if (data[i + j] !== boundary[j]) {
+          match = false;
+          break;
+        }
+      }
+      if (match) {
+        // Check for CRLF before the boundary, and CRLF after the boundary
+        if (i > 0 && data[i - 1] === 0x0A && data[i - 2] === 0x0D) {
+          return i - 2; // Return start of CRLF before boundary
+        }
+      }
+    }
+    return -1;
+  }
+
+  private async parseMultipartFormData(data: Uint8Array,
+    boundary: string): Promise<Map<string, string | ArrayBuffer>> {
+    const parts = this.splitMultipartData(data, boundary);
+    const result = new Map<string, string | ArrayBuffer>();
+
+    for (const part of parts) {
+      let headersEnd = -1;
+      const CRLF_CRLF = new Uint8Array([0x0D, 0x0A, 0x0D, 0x0A]);
+      for (let i = 0; i <= part.length - CRLF_CRLF.length; i++) {
+        if (part[i] === CRLF_CRLF[0] &&
+          part[i + 1] === CRLF_CRLF[1] &&
+          part[i + 2] === CRLF_CRLF[2] &&
+          part[i + 3] === CRLF_CRLF[3]) {
+          headersEnd = i;
+          break;
+        }
+      }
+
+      if (headersEnd === -1) {
+        continue;
+      }
+
+      const headers = Utils.uint8ToStr(part.slice(0, headersEnd));
+      const content = part.slice(headersEnd + 4); // Skip CRLF CRLF
+
+      const nameMatch = headers.match(/name="([^"]+)"/);
+      if (nameMatch && nameMatch[1]) {
+        const name = nameMatch[1];
+        const contentTypeMatch = headers.match(/Content-Type: ([^\r\n]+)/);
+
+        if (contentTypeMatch) {
+          // This is likely a file
+          result.set(name, content.buffer); // Store as ArrayBuffer
+        } else {
+          // Assume text content
+          result.set(name, Utils.uint8ToStr(content));
+        }
+      }
+    }
+    return result;
+  }
+
+
+  // ...existing code...
   // 提取 multipart 边界符
   private extractBoundary(contentType: string): string {
     const match = /boundary=([^;]+)/.exec(contentType);
