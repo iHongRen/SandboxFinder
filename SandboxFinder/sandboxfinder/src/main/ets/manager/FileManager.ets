@@ -5,10 +5,8 @@
  * @description :  文件处理
  */
 
-import { zlib } from '@kit.BasicServicesKit'
 import { fileIo } from '@kit.CoreFileKit'
 import { FileItem } from '../models/FileItem'
-import { util } from '@kit.ArkTS'
 import { Utils } from '../utils/Utils'
 
 class SandboxDir {
@@ -120,62 +118,39 @@ export class FileManager {
 
   // 列出目录内容（ls）
   public async listDir(dirPath: string): Promise<FileItem[]> {
-
-    try {
-      if (dirPath === '' || dirPath === '/data') {
-        return this.getDefaultItems(['storage'], '/data')
-      }
-
-      if (dirPath === '/data/storage') {
-        return this.getDefaultItems(['el1', 'el2'], dirPath)
-      }
-
-      if (dirPath === '/data/storage/el1' || dirPath === '/data/storage/el2') {
-        return this.getDefaultItems(['base', 'database'], dirPath)
-      }
-
-      if (dirPath === '/') {
-        return this.contextDirs()
-      }
-
-
-      const filenames = await fileIo.listFile(dirPath, { recursion: false });
-      const fileInfos = await Promise.all(filenames.map(async filename => {
-        const filePath = dirPath + '/' + filename;
-        const stat = await fileIo.stat(filePath);
-        const item = new FileItem();
-        item.name = filename;
-        item.path = filePath;
-        item.size = stat.size
-        item.modified = stat.mtime
-        item.isFolder = stat.isDirectory();
-        item.ext = item.isFolder ? '' :  this.getExtension(filePath)
-        return item;
-      }));
-
-      return fileInfos;
-    } catch (err) {
-      console.error('listDir失败:', err);
-      return [];
+    if (dirPath === '' || dirPath === '/data') {
+      return this.getDefaultItems(['storage'], '/data')
     }
-  }
 
-  // 读取文件内容（cat）
-  // public async readFileContent(filePath: string): Promise<string> {
-  //   try {
-  //     const absPath = filePath.startsWith('/') ? filePath : this.serverPath + '/' + filePath;
-  //     const file = await fileIo.open(absPath, fileIo.OpenMode.READ_ONLY);
-  //     const stat = await fileIo.stat(absPath);
-  //     const buf = new ArrayBuffer(stat.size);
-  //     await fileIo.read(file.fd, buf);
-  //     await fileIo.close(file.fd);
-  //     // 假设文本文件 utf-8
-  //     return String.fromCharCode.apply(null, new Uint8Array(buf));
-  //   } catch (err) {
-  //     console.error('readFileContent失败:', err);
-  //     return '';
-  //   }
-  // }
+    if (dirPath === '/data/storage') {
+      return this.getDefaultItems(['el1', 'el2'], dirPath)
+    }
+
+    if (dirPath === '/data/storage/el1' || dirPath === '/data/storage/el2') {
+      return this.getDefaultItems(['base', 'database'], dirPath)
+    }
+
+    if (dirPath === '/') {
+      return this.contextDirs()
+    }
+
+
+    const filenames = await fileIo.listFile(dirPath, { recursion: false });
+    const fileInfos = await Promise.all(filenames.map(async filename => {
+      const filePath = dirPath + '/' + filename;
+      const stat = await fileIo.stat(filePath);
+      const item = new FileItem();
+      item.name = filename;
+      item.path = filePath;
+      item.size = stat.size
+      item.modified = stat.mtime
+      item.isFolder = stat.isDirectory();
+      item.ext = item.isFolder ? '' : this.getExtension(filePath)
+      return item;
+    }));
+
+    return fileInfos;
+  }
 
   // 新建空文件（touch）
   public async touch(filePath: string): Promise<void> {
@@ -188,17 +163,12 @@ export class FileManager {
   }
 
   // 删除文件或目录（rm）
-  public async remove(path: string, recursive: boolean = false): Promise<void> {
-    const absPath = path.startsWith('/') ? path : this.serverPath + '/' + path;
-    const stat = await fileIo.stat(absPath);
+  public async remove(path: string): Promise<void> {
+    const stat = await fileIo.stat(path);
     if (stat.isDirectory()) {
-      if (recursive) {
-        await this.deleteDirectory(absPath);
-      } else {
-        await fileIo.rmdir(absPath);
-      }
+      await fileIo.rmdir(path);
     } else {
-      await fileIo.unlink(absPath);
+      await fileIo.unlink(path);
     }
   }
 
@@ -271,7 +241,7 @@ export class FileManager {
 
 
     const ext = this.getExtension(filePath)
-   
+
 
     const file = await fileIo.open(filePath, fileIo.OpenMode.READ_ONLY);
     const stat = await fileIo.stat(filePath);
@@ -299,102 +269,6 @@ export class FileManager {
       return false
     }
     return true
-  }
-
-  // 获取目录下的所有文件和文件夹
-  // async getDirectoryContents(dirName: string): Promise<FileItem[]> {
-  //   try {
-  //     const dirPath = this.serverPath + '/' + dirName
-  //
-  //     // 读取目录内容
-  //     let filenames = await fileIo.listFile(dirPath)
-  //     const filters = ['__MACOSX', '.DS_Store']
-  //     filenames = filenames.filter(e => !filters.includes(e))
-  //
-  //     // 并行获取每个条目的详细信息
-  //     const fileInfos = await Promise.all(filenames.map(async filename => {
-  //       const filePath = dirPath + '/' + filename
-  //       const stat = await fileIo.stat(filePath)
-  //
-  //       const item = new FileItem()
-  //       item.name = filename
-  //       item.path = filePath
-  //       item.size = this.formatSize(stat.size)
-  //       item.modified = this.formatMtime(stat.mtime)
-  //       item.isFolder = stat.isDirectory()
-  //       return item
-  //     }))
-  //
-  //     return fileInfos
-  //   } catch (err) {
-  //     console.error('获取目录内容失败:', err)
-  //     return []
-  //   }
-  // }
-
-  // 删除项目
-  public async deleteProject(projectName: string): Promise<void> {
-    try {
-      const projectPath = this.serverPath + '/' + projectName
-      await this.deleteDirectory(projectPath)
-    } catch (error) {
-      console.error('删除项目失败:', error)
-    }
-  }
-
-  // 递归删除目录
-  private async deleteDirectory(dirPath: string): Promise<void> {
-    try {
-      const files = await fileIo.listFile(dirPath)
-
-      for (const file of files) {
-        const filePath = dirPath + '/' + file
-        const stat = await fileIo.stat(filePath)
-
-        if (stat.isDirectory()) {
-          await this.deleteDirectory(filePath)
-        } else {
-          await fileIo.unlink(filePath)
-        }
-      }
-
-      await fileIo.rmdir(dirPath)
-    } catch (error) {
-      console.error('删除目录失败:', dirPath, error)
-    }
-  }
-
-  // 创建项目目录
-  public async createProject(projectName: string): Promise<void> {
-    const projectPath = this.serverPath + '/' + projectName
-    await fileIo.mkdir(projectPath)
-  }
-
-  // 写入项目文件
-  public async writeProjectFile(projectName: string, content: ArrayBuffer): Promise<void> {
-    try {
-      const fullPath = this.context.tempDir + '/' + projectName
-
-      // 确保目录存在
-      const dirPath = fullPath.substring(0, fullPath.lastIndexOf('/'))
-      await this.ensureDirectoryExists(dirPath)
-
-      // 写入文件
-      const file =
-        await fileIo.open(fullPath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC)
-      await fileIo.write(file.fd, content)
-
-      const outFileDir = this.serverPath + '/' + projectName.replace(/\.[^/.]+$/, '')
-      await this.ensureDirectoryExists(outFileDir)
-
-      await zlib.decompressFile(fullPath, outFileDir)
-
-      await fileIo.unlink(fullPath)
-      await fileIo.close(file.fd)
-
-    } catch (error) {
-      console.error('写入项目文件失败:', error)
-    }
   }
 
   // 确保目录存在
@@ -487,10 +361,10 @@ export class FileManager {
   isPlainText(filePath: string): boolean {
     const ext = this.getExtension(filePath)
     const plainTextExtensions = [
-      'txt', 'html', 'css', 'js', 'json', 'xml', 'md', 'vue', 'ts', 'jsx', 'tsx', 
+      'txt', 'html', 'css', 'js', 'json', 'xml', 'md', 'vue', 'ts', 'jsx', 'tsx',
       'scss', 'sass', 'less', 'ets', 'php', 'py', 'rb', 'java', 'c', 'cpp', 'h', 'hpp',
-      'go', 'rs', 'swift', 'kt', 'scala', 'clj', 'cljs', 'erl', 'hs', 'purs', 'ml', 'mli', 
-      'fs', 'fsi', 'ada', 'd', 'dart', 'elixir', 'ex', 'exs', 'jl', 'm', 'mm', 'pde', 'pl', 
+      'go', 'rs', 'swift', 'kt', 'scala', 'clj', 'cljs', 'erl', 'hs', 'purs', 'ml', 'mli',
+      'fs', 'fsi', 'ada', 'd', 'dart', 'elixir', 'ex', 'exs', 'jl', 'm', 'mm', 'pde', 'pl',
       'pm', 'r', 'sml'
     ]
     return plainTextExtensions.includes(ext)

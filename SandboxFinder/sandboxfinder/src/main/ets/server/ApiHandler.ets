@@ -9,9 +9,6 @@ import { ServerInfo } from '../models/ServerInfo';
 import { FileManager } from '../manager/FileManager';
 import { Response } from './Response';
 import { bundleManager } from "@kit.AbilityKit";
-import fs from '@ohos.file.fs';
-import { util } from '@kit.ArkTS';
-
 
 export class ApiHandler {
   private bundleInfo = bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT)
@@ -29,184 +26,123 @@ export class ApiHandler {
   public async handleApiRequest(method: string, url: string,
     bodyParams: Record<string, Object> = {}): Promise<Response> {
     try {
-      // 获取参数
-      const arr = url.split('?');
-      const pathPart = arr[0]
-      const queryString = arr[1]
-      const params: Record<string, Object> = bodyParams
+      // 参数解析
+      const req = url.split('?');
+      const pathPart = req[0] as string
+      const queryString = req[1]
+      const params: Record<string, Object> = bodyParams || {};
       if (queryString) {
         queryString.split('&').forEach(pair => {
-          const arr = pair.split('=');
-          const k = arr[0]
-          const v = arr[1]
-          params[k] = decodeURIComponent(v);
+          const kv = pair.split('=');
+          params[kv[0]] = decodeURIComponent(kv[1]);
         });
       }
 
-      // 服务器信息
-      if (pathPart === '/api/server-info') {
-        const serverInfo: ServerInfo = {
-          address: this.serverAddress,
-          port: this.serverPort,
-        };
-        return {
-          code: 200,
-          data: serverInfo
-        }
-      }
+      // 路由映射
+      const routeMap: Record<string, (params: Record<string, Object>) => Promise<Response>> = {
+        '/api/server-info': this.serverInfo.bind(this),
+        '/api/app-info': this.appInfo.bind(this),
+        '/api/read': this.read.bind(this),
+        '/api/ls': this.ls.bind(this),
+        '/api/touch': this.touch.bind(this),
+        '/api/rm': this.rm.bind(this),
+        '/api/mv': this.mv.bind(this),
+        '/api/cp': this.cp.bind(this),
+        '/api/mkdir': this.mkdir.bind(this),
+      };
 
-      if (pathPart === '/api/app-info') {
-        return {
-          code: 200,
-          data: {
-            versionCode: this.bundleInfo.versionCode,
-            versionName: this.bundleInfo.versionName,
-            bundleName: this.bundleInfo.name,
-          }
-        }
+      if (routeMap[pathPart]) {
+        return await routeMap[pathPart](params);
       }
-
-      // read: 读取文件内容
-      if (pathPart === '/api/read') {
-        const filePath = params['path'] as string;
-        if (!filePath) {
-          return {
-            code: 400,
-            message: 'Missing path'
-          }
-        }
-        const file = await fs.open(filePath, fs.OpenMode.READ_ONLY);
-        const stat = await fs.stat(filePath);
-        const buffer = new ArrayBuffer(stat.size);
-        await fs.read(file.fd, buffer);
-        await fs.close(file.fd);
-
-        const textDecoder = util.TextDecoder.create('utf-8');
-        const content = textDecoder.decodeToString(new Uint8Array(buffer));
-        return {
-          code: 200,
-          data: { content: content, type: 'text' }
-        }
-      }
-
-      // ls: 列出目录内容
-      if (pathPart === '/api/ls') {
-        const dirPath = params['path'] as string || '/';
-        const list = await this.fileManager.listDir(dirPath);
-        return {
-          code: 200,
-          data: list
-        }
-      }
-
-      // touch: 新建空文件
-      if (pathPart === '/api/touch' && method === 'POST') {
-        const filePath = params['path'] as string
-        if (!filePath) {
-          return {
-            code: 400,
-            message: 'Missing path'
-          }
-        }
-        await this.fileManager.writeProjectFile(filePath, new ArrayBuffer(0));
-        this.onFileChanged?.();
-        return {
-          code: 200,
-          data: {
-            success: true
-          }
-        }
-      }
-
-      // rm: 删除文件或目录
-      if (pathPart === '/api/rm' && method === 'POST') {
-        const filePath = params['path'] as string
-        const recursive = params['recursive'] === 'true' || params['recursive'] === true;
-        if (!filePath) {
-          return {
-            code: 400,
-            message: 'Missing path'
-          }
-        }
-        await this.fileManager.remove(filePath, recursive);
-        this.onFileChanged?.();
-        return {
-          code: 200,
-          data: {
-            success: true
-          }
-        }
-      }
-
-      // mv: 重命名/移动
-      if (pathPart === '/api/mv' && method === 'POST') {
-        const src = params['src'] as string
-        const dest = params['dest'] as string
-        if (!src || !dest) {
-          return {
-            code: 400,
-            message: 'Missing src or dest'
-          }
-        }
-        await this.fileManager.move(src, dest);
-        this.onFileChanged?.();
-        return {
-          code: 200,
-          data: {
-            success: true
-          }
-        }
-      }
-
-      // cp: 复制
-      if (pathPart === '/api/cp' && method === 'POST') {
-        const src = params['src'] as string
-        const dest = params['dest'] as string
-        const recursive = params['recursive'] === 'true' || params['recursive'] === true;
-        if (!src || !dest) {
-          return {
-            code: 400,
-            message: 'Missing src or dest'
-          }
-        }
-        await this.fileManager.copy(src, dest, recursive);
-        this.onFileChanged?.();
-        return {
-          code: 200,
-          data: {
-            success: true
-          }
-        }
-      }
-
-      // mkdir: 新建目录
-      if (pathPart === '/api/mkdir' && method === 'POST') {
-        const dirPath = params['path'] as string
-        if (!dirPath) {
-          return {
-            code: 400,
-            message: 'Missing path'
-          }
-        }
-        await this.fileManager.mkdir(dirPath, '');
-        this.onFileChanged?.();
-        return {
-          code: 200,
-          data: {
-            success: true
-          }
-        }
-      }
-
-      return {
-        code: 404,
-        message: 'API not found'
-      }
+      return { code: 404, message: 'API not found' };
     } catch (error) {
-      return {
-        code: 500,
-        message: 'Internal Server Error'
+      return { code: 500, message: String(error) };
+    }
+  }
+
+  async serverInfo(): Promise<Response> {
+    return {
+      code: 200,
+      data: { address: this.serverAddress, port: this.serverPort }
+    }
+  }
+
+  async appInfo(): Promise<Response> {
+    return {
+      code: 200,
+      data: {
+        versionCode: this.bundleInfo.versionCode,
+        versionName: this.bundleInfo.versionName,
+        bundleName: this.bundleInfo.name,
       }
     }
+  }
+
+  async read(params: Record<string, Object>): Promise<Response> {
+    const filePath = params['path'] as string;
+    if (!filePath) {
+      return { code: 400, message: 'Missing path' };
+    }
+    const content = this.fileManager.readFile(filePath)
+    return { code: 200, data: { content, type: 'text' } };
+  }
+
+  async ls(params: Record<string, Object>): Promise<Response> {
+    const dirPath = params['path'] as string || '/';
+    const list = await this.fileManager.listDir(dirPath);
+    return { code: 200, data: list }
+  }
+
+  async touch(params: Record<string, Object>): Promise<Response> {
+    const filePath = params['path'] as string;
+    if (!filePath) {
+      return { code: 400, message: 'Missing path' };
+    }
+    await this.fileManager.writeFile(filePath, new ArrayBuffer(0));
+    this.onFileChanged?.();
+    return { code: 200, data: { success: true } };
+  }
+
+  async rm(params: Record<string, Object>): Promise<Response> {
+    const filePath = params['path'] as string;
+    if (!filePath) {
+      return { code: 400, message: 'Missing path' };
+    }
+    await this.fileManager.remove(filePath);
+    this.onFileChanged?.();
+    return { code: 200, data: { success: true } };
+  }
+
+  async mv(params: Record<string, Object>): Promise<Response> {
+    const src = params['src'] as string;
+    const dest = params['dest'] as string;
+    if (!src || !dest) {
+      return { code: 400, message: 'Missing src or dest' };
+    }
+    await this.fileManager.move(src, dest);
+    this.onFileChanged?.();
+    return { code: 200, data: { success: true } };
+  }
+
+  async cp(params: Record<string, Object>): Promise<Response> {
+    const src = params['src'] as string;
+    const dest = params['dest'] as string;
+    const recursive = params['recursive'] === 'true' || params['recursive'] === true;
+    if (!src || !dest) {
+      return { code: 400, message: 'Missing src or dest' };
+    }
+    await this.fileManager.copy(src, dest, recursive);
+    this.onFileChanged?.();
+    return { code: 200, data: { success: true } };
+  }
+
+  async mkdir(params: Record<string, Object>): Promise<Response> {
+    const dirPath = params['path'] as string;
+    if (!dirPath) {
+      return { code: 400, message: 'Missing path' };
+    }
+    await this.fileManager.mkdir(dirPath, '');
+    this.onFileChanged?.();
+    return { code: 200, data: { success: true } };
   }
 }
