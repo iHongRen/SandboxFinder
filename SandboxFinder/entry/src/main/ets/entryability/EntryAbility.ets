@@ -1,14 +1,12 @@
 import { AbilityConstant, common, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
-import { fileIo , Filter, ListFileOptions } from '@kit.CoreFileKit';
+import { fileIo, Filter, ListFileOptions } from '@kit.CoreFileKit';
 import { SandboxFinder } from 'sandboxfinder';
 
 const DOMAIN = 0x0000;
 
 export default class EntryAbility extends UIAbility {
-
-
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
@@ -25,23 +23,23 @@ export default class EntryAbility extends UIAbility {
     // this.getListFile(this.context)
   }
 
-   getListFile(context: common.UIAbilityContext): void {
-     let listFileOption: ListFileOptions = {
-       recursion: true,
-       listNum: 0,
-       // filter: {
-       //   suffix: [".png", ".jpg", ".txt"],
-       //   displayName: ["test*"],
-       //   fileSizeOver: 0,
-       //   lastModifiedAfter: new Date(0).getTime()
-       // }
-     };
-     let filesDir = this.context.distributedFilesDir // '/data/storage/el1/distributedfiles/';
-     let files = fileIo.listFileSync(filesDir, listFileOption);
-     for (let i = 0; i < files.length; i++) {
-       console.error(`The name of file: ${files[i]}`);
-     }
-   }
+  getListFile(context: common.UIAbilityContext): void {
+    let listFileOption: ListFileOptions = {
+      recursion: true,
+      listNum: 0,
+      // filter: {
+      //   suffix: [".png", ".jpg", ".txt"],
+      //   displayName: ["test*"],
+      //   fileSizeOver: 0,
+      //   lastModifiedAfter: new Date(0).getTime()
+      // }
+    };
+    let filesDir = this.context.distributedFilesDir // '/data/storage/el1/distributedfiles/';
+    let files = fileIo.listFileSync(filesDir, listFileOption);
+    for (let i = 0; i < files.length; i++) {
+      console.error(`The name of file: ${files[i]}`);
+    }
+  }
 
   async onDestroy() {
     await SandboxFinder.stop()
@@ -59,6 +57,8 @@ export default class EntryAbility extends UIAbility {
       }
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
     });
+
+    windowStage.getMainWindowSync().setWindowKeepScreenOn(true)
   }
 
   onWindowStageDestroy(): void {
