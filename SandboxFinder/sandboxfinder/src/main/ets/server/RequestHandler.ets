@@ -51,7 +51,13 @@ export class RequestHandler {
     const firstLine = lines[0]
     const firstList = firstLine.split(' ');
     const method = firstList[0]
-    const url = firstList[1]
+    // 修复：url 需 decodeURIComponent 还原真实路径，防止中文/空格/特殊字符出错
+    let url = firstList[1]
+    try {
+      // 先将所有 + 替换为 %20，再 decodeURIComponent，彻底兼容空格
+      url = decodeURIComponent(url.replace(/\+/g, '%20'))
+    } catch {
+    }
 
     // 提取头部和主体
     const headersLines = lines.slice(1); // 跳过请求行

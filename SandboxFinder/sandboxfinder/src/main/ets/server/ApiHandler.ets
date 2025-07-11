@@ -23,6 +23,13 @@ export class ApiHandler {
     this.serverPort = serverInfo.port;
   }
 
+  private decodeParam(val: Object): string {
+    if (typeof val !== 'string') {
+      return '';
+    }
+    return decodeURIComponent(val.replace(/\+/g, '%20'));
+  }
+
   public async handleApiRequest(method: string, url: string,
     bodyParams: Record<string, Object> = {}): Promise<Response> {
     try {
@@ -79,7 +86,7 @@ export class ApiHandler {
   }
 
   async read(params: Record<string, Object>): Promise<Response> {
-    const filePath = params['path'] as string;
+    const filePath = this.decodeParam(params['path']);
     if (!filePath) {
       return { code: 400, message: 'Missing path' };
     }
@@ -152,13 +159,13 @@ export class ApiHandler {
   }
 
   async ls(params: Record<string, Object>): Promise<Response> {
-    const dirPath = params['path'] as string || '/';
+    const dirPath = this.decodeParam(params['path']) || '/';
     const list = await this.fileManager.listDir(dirPath);
     return { code: 200, data: list }
   }
 
   async touch(params: Record<string, Object>): Promise<Response> {
-    const filePath = params['path'] as string;
+    const filePath = this.decodeParam(params['path']);
     if (!filePath) {
       return { code: 400, message: 'Missing path' };
     }
@@ -168,7 +175,7 @@ export class ApiHandler {
   }
 
   async rm(params: Record<string, Object>): Promise<Response> {
-    const filePath = params['path'] as string;
+    const filePath = this.decodeParam(params['path']);
     if (!filePath) {
       return { code: 400, message: 'Missing path' };
     }
@@ -179,8 +186,8 @@ export class ApiHandler {
 
   // 支持项目重命名的 mv
   async mv(params: Record<string, Object>): Promise<Response> {
-    const src = params['src'] as string;
-    const dest = params['dest'] as string;
+    const src = this.decodeParam(params['src']);
+    const dest = this.decodeParam(params['dest']);
     const isRename = params['rename'] === 'true';
     if (!src || !dest) {
       return { code: 400, message: 'Missing src or dest' };
@@ -192,8 +199,8 @@ export class ApiHandler {
   }
 
   async cp(params: Record<string, Object>): Promise<Response> {
-    const src = params['src'] as string;
-    const dest = params['dest'] as string;
+    const src = this.decodeParam(params['src']);
+    const dest = this.decodeParam(params['dest']);
     if (!src || !dest) {
       return { code: 400, message: 'Missing src or dest' };
     }
@@ -203,7 +210,7 @@ export class ApiHandler {
   }
 
   async mkdir(params: Record<string, Object>): Promise<Response> {
-    const dirPath = params['path'] as string;
+    const dirPath = this.decodeParam(params['path']);
     if (!dirPath) {
       return { code: 400, message: 'Missing path' };
     }

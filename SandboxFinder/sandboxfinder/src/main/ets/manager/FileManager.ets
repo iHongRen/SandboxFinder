@@ -54,9 +54,7 @@ export class FileManager {
 
   // 获取缓存文件路径（原文件名，需编码）
   private getCacheFileName(filePath: string): string {
-    // 只取文件名部分，并进行 URI 编码，防止中文/空格/特殊字符问题
-    const rawName = filePath.split('/').pop() || 'file';
-    return encodeURIComponent(rawName);
+    return filePath.split('/').pop() || 'file';
   }
 
   // LRU缓存：获取或拷贝到缓存，并返回缓存路径（原文件名，重名直接覆盖）
@@ -81,7 +79,8 @@ export class FileManager {
       if (value.cachePath.endsWith('/' + cacheFileName) && key !== filePath) {
         try {
           await fileIo.unlink(value.cachePath)
-        } catch {}
+        } catch {
+        }
         this.lruCache.delete(key)
         break
       }
