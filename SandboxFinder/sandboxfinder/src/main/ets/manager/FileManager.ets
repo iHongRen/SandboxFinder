@@ -452,11 +452,24 @@ export class FileManager {
   isPlainText(filePath: string): boolean {
     const ext = this.getExtension(filePath)
     const plainTextExtensions = [
-      'txt', 'html', 'css', 'js', 'json', 'xml', 'md', 'vue', 'ts', 'jsx', 'tsx',
-      'scss', 'sass', 'less', 'ets', 'php', 'py', 'rb', 'java', 'c', 'cpp', 'h', 'hpp',
-      'go', 'rs', 'swift', 'kt', 'scala', 'clj', 'cljs', 'erl', 'hs', 'purs', 'ml', 'mli',
-      'fs', 'fsi', 'ada', 'd', 'dart', 'elixir', 'ex', 'exs', 'jl', 'm', 'mm', 'pde', 'pl',
-      'pm', 'r', 'sml'
+      'txt', 'html', 'htm', 'css', 'scss', 'sass', 'less', 'js', 'jsx', 'ts', 'tsx', 'plist',
+      'json', 'json5', 'jsonc', 'xml', 'yaml', 'yml', 'toml', 'ini', 'env', 'md', 'markdown',
+      'svg', 'vue', 'svelte', 'astro', 'php', 'py', 'java', 'c', 'cpp', 'h', 'hpp',
+      'go', 'rs', 'swift', 'kt', 'scala', 'rb', 'pl', 'pm', 'lua', 'r', 'sql', 'dbml',
+      'sh', 'bash', 'zsh', 'ps1', 'bat', 'cmd', 'gitignore', 'dockerfile', 'editorconfig',
+      'eslintrc', 'prettierrc', 'conf', 'config', 'log', 'csv', 'tsv', 'properties',
+      'diff', 'patch', 'ad', 'adoc', 'rst', 'tex', 'latex', 'org', 'asciidoc',
+      'pug', 'jade', 'styl', 'stylus', 'dart', 'fs', 'fsx', 'ml', 'mli', 'erl',
+      'ex', 'exs', 'elixir', 'hs', 'purs', 'ada', 'd', 'jl', 'm', 'mm', 'pde', 'sml',
+      'thrift', 'proto', 'graphql', 'gql', 'sol', 'solidity', 'wgsl', 'cypher', 'dot', 'edn',
+      'haxe', 'hx', 'idris', 'idr', 'julia', 'kotlin', 'lean', 'lean4', 'lisp',
+      'mercury', 'nim', 'nix', 'ocaml', 'pascal', 'pas', 'perl', 'prolog', 'pro', 'python',
+      'racket', 'rkt', 'reason', 're', 'rust', 'sc', 'shell', 'swift', 'tcl', 'tk', 'vala', 'v', 'vb',
+      'vhdl', 'vim', 'wren', 'zig', 'webmanifest', 'lock', 'npmrc', 'yarnrc', 'yarnrc.yml',
+      'pnpm-lock', 'pnpmrc', 'browserslist', 'prettierignore', 'eslintignore', 'gitattributes',
+      'dockerignore', 'npmignore', 'env.example', 'dotenv', 'tern-project', 'jsbeautifyrc',
+      'stylelintrc', 'markdownlintrc', 'htmlhintrc', 'csscomb', 'tsconfig', 'jsconfig',
+      'nodemon.json', 'nginx.conf', 'htaccess', 'php.ini', 'robots.txt', 'sitemap.xml', 'rss', 'atom'
     ]
     return plainTextExtensions.includes(ext)
   }
