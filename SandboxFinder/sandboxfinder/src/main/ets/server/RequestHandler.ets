@@ -88,7 +88,7 @@ export class RequestHandler {
     // 处理API请求
     if (url.startsWith('/api/')) {
       const result = await this.apiHandler.handleApiRequest(method, url, bodyParams);
-      return this.createHttpResponse(result.code, JSON.stringify(result.data), 'application/json');
+      return this.createHttpResponse(result.code, JSON.stringify(result), 'application/json');
     }
 
     // 处理静态文件请求

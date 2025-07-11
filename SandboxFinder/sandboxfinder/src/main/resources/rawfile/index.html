@@ -78,6 +78,16 @@
     </head>
     <body class="bg-gray-50">
         <div id="app">
+            <!-- Error Dialog -->
+            <div v-if="errorDialog" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                <div class="bg-white rounded-lg shadow-xl p-6 w-96 max-w-full">
+                    <h3 class="text-lg font-semibold mb-4 text-red-600 flex items-center"><i class="fas fa-exclamation-triangle mr-2"></i>错误</h3>
+                    <div class="text-gray-700 break-words whitespace-pre-line">{{ errorMsg }}</div>
+                    <div class="flex justify-end mt-6">
+                        <button @click="errorDialog = false" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">关闭</button>
+                    </div>
+                </div>
+            </div>
             <div class="flex h-screen overflow-hidden">
                 <!-- Sidebar -->
                 <div class="sidebar bg-white shadow-md w-64 p-2 border-r flex flex-col" :class="{ 'active': showSidebar }">
@@ -478,6 +488,13 @@
 
             createApp({
                 setup() {
+                    // 全局错误弹窗
+                    const errorDialog = ref(false)
+                    const errorMsg = ref('')
+                    const showError = msg => {
+                        errorMsg.value = typeof msg === 'string' ? msg : msg?.message || '发生未知错误'
+                        errorDialog.value = true
+                    }
                     // State
                     const items = ref([])
                     const selectedItem = ref(null)
@@ -520,23 +537,32 @@
                         return depth >= 5
                     })
 
+                    // 统一fetch封装
+                    const safeFetch = async (url, { method = 'POST', headers = {}, body = undefined, isJson = true } = {}) => {
+                        try {
+                            const defaultHeaders = method === 'POST' ? { 'Content-Type': 'application/x-www-form-urlencoded', ...headers } : headers
+                            const res = await fetch(url, { method, headers: defaultHeaders, body })
+                            return isJson ? await res.json() : await res.text()
+                        } catch (e) {
+                            showError('网络请求异常：' + (e?.message || e))
+                            throw e
+                        }
+                    }
+
                     const loadPath = async path => {
                         try {
                             const formData = new URLSearchParams()
                             formData.append('path', path)
-                            const res = await fetch('/api/ls', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/x-www-form-urlencoded'
-                                },
-                                body: formData.toString()
-                            })
-                            if (!res.ok) throw new Error('Failed to fetch directory')
-                            const data = await res.json()
-                            items.value = data
-                            allFolders.value = items.value.filter(item => item.isFolder)
+                            const result = await safeFetch('/api/ls', { body: formData.toString() })
+                            if (result.code === 200 && Array.isArray(result.data)) {
+                                items.value = result.data
+                                allFolders.value = items.value.filter(item => item.isFolder)
+                            } else {
+                                showError('加载目录失败：' + (result?.message || result))
+                                items.value = []
+                                allFolders.value = []
+                            }
                         } catch (e) {
-                            console.error('加载目录失败', e)
                             items.value = []
                             allFolders.value = []
                         }
@@ -546,32 +572,27 @@
                         try {
                             const formData = new URLSearchParams()
                             formData.append('path', '/')
-                            const res = await fetch('/api/ls', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                                body: formData.toString()
-                            })
-                            if (!res.ok) throw new Error('Failed to fetch shortcuts')
-                            const data = await res.json()
-                            shortcuts.value = data.filter(item => item.isFolder)
+                            const result = await safeFetch('/api/ls', { body: formData.toString() })
+                            if (result.code === 200 && Array.isArray(result.data)) {
+                                shortcuts.value = result.data.filter(item => item.isFolder)
+                            } else {
+                                showError('加载快捷目录失败：' + (result?.message || result))
+                                shortcuts.value = []
+                            }
                             if (shortcuts.value.length > 0) {
                                 navigateToPath(shortcuts.value[0].path)
                             } else {
                                 navigateToPath('/')
                             }
                         } catch (e) {
-                            console.error('Failed to load shortcuts', e)
                             navigateToPath('/data/storage') // Fallback
                         }
                     }
 
                     const loadAppInfo = async () => {
-                        try {
-                            const res = await fetch('/api/app-info')
-                            if (!res.ok) throw new Error('Failed to fetch app info')
-                            appInfo.value = await res.json()
-                        } catch (e) {
-                            console.error('Failed to load app info', e)
+                        const result = await safeFetch('/api/app-info')
+                        if (result.code === 200) {
+                            appInfo.value = result.data
                         }
                     }
 
@@ -766,18 +787,14 @@
                         try {
                             const formData = new URLSearchParams()
                             formData.append('path', item.path)
-                            const res = await fetch('/api/read', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/x-www-form-urlencoded'
-                                },
-                                body: formData.toString()
-                            })
-                            if (!res.ok) throw new Error('Failed to fetch file content')
-                            const data = await res.json()
-                            fileContent.value = data.content
+                            const result = await safeFetch('/api/read', { body: formData.toString() })
+                            if (result.code === 200 && result.data !== undefined) {
+                                fileContent.value = result.data
+                            } else {
+                                showError('文件预览失败：' + (result?.message || '未知错误'))
+                                fileContent.value = 'Error loading file content.'
+                            }
                         } catch (e) {
-                            console.error('Failed to load file content', e)
                             fileContent.value = 'Error loading file content.'
                         }
                     }
@@ -835,18 +852,15 @@
                             const formData = new FormData()
                             formData.append('file', file)
                             formData.append('filename', file.name)
+                            formData.append('path', currentPath.value)
                             try {
-                                formData.append('path', currentPath.value)
                                 const res = await fetch('/api/upload', {
                                     method: 'POST',
                                     body: formData
                                 })
-
                                 if (!res.ok) throw new Error(`Failed to upload ${file.name}`)
-                                console.log(`${file.name} uploaded successfully`)
                             } catch (e) {
-                                console.error(`Error uploading ${file.name}:`, e)
-                                alert(`Error uploading ${file.name}: ${e.message}`)
+                                showError(`上传失败：${file.name} - ${e?.message || e}`)
                             }
                         }
 
@@ -878,17 +892,13 @@
                             formData.append('src', oldPath)
                             formData.append('dest', newPath)
                             formData.append('rename', 'true') // 标记为重命名操作
-                            const res = await fetch('/api/mv', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                                body: formData.toString()
-                            })
-                            if (!res.ok) throw new Error('Failed to rename item')
-                            await loadPath(currentPath.value)
-                        } catch (e) {
-                            console.error('Failed to rename item', e)
-                            alert('Error: Could not rename the item.')
-                        }
+                            const result = await safeFetch('/api/mv', { body: formData.toString() })
+                            if (result.code !== 200) {
+                                showError('重命名失败：' + (result?.message || result))
+                            } else {
+                                await loadPath(currentPath.value)
+                            }
+                        } catch (e) {}
 
                         isRenamingItem.value = false
                         itemToRename.value = null
@@ -912,24 +922,17 @@
                         try {
                             const formData = new URLSearchParams()
                             formData.append('path', itemToDelete.value.path)
-
-                            const res = await fetch('/api/rm', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                                body: formData.toString()
-                            })
-
-                            if (!res.ok) throw new Error('Failed to delete item')
-
-                            await loadPath(currentPath.value)
-
-                            if (selectedItem.value && selectedItem.value.path === itemToDelete.value.path) {
-                                selectedItem.value = null
-                                isPreviewing.value = false
+                            const result = await safeFetch('/api/rm', { body: formData.toString() })
+                            if (result.code !== 200) {
+                                showError('删除失败：' + (result?.message || result))
+                            } else {
+                                await loadPath(currentPath.value)
+                                if (selectedItem.value && selectedItem.value.path === itemToDelete.value.path) {
+                                    selectedItem.value = null
+                                    isPreviewing.value = false
+                                }
                             }
                         } catch (e) {
-                            console.error('Failed to delete item', e)
-                            alert('Error: Could not delete the item.')
                         } finally {
                             isDeletingItem.value = false
                             itemToDelete.value = null
@@ -1022,6 +1025,9 @@
                     })
 
                     return {
+                        errorDialog,
+                        errorMsg,
+                        showError,
                         // State
                         items,
                         selectedItem,

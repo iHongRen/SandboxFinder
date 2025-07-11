@@ -56,7 +56,7 @@ export class ApiHandler {
       }
       return { code: 404, message: 'API not found' };
     } catch (error) {
-      return { code: 500, message: String(error) };
+      return { code: 500, message: (error as Error).message };
     }
   }
 
@@ -130,11 +130,10 @@ export class ApiHandler {
   async cp(params: Record<string, Object>): Promise<Response> {
     const src = params['src'] as string;
     const dest = params['dest'] as string;
-    const recursive = params['recursive'] === 'true' || params['recursive'] === true;
     if (!src || !dest) {
       return { code: 400, message: 'Missing src or dest' };
     }
-    await this.fileManager.copy(src, dest, recursive);
+    await this.fileManager.copy(src, dest);
     this.onFileChanged?.();
     return { code: 200, data: { success: true } };
   }

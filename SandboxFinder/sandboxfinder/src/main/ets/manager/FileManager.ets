@@ -177,12 +177,9 @@ export class FileManager {
   }
 
   // 复制文件或目录（cp）
-  public async copy(src: string, dest: string, recursive: boolean = false): Promise<void> {
+  public async copy(src: string, dest: string): Promise<void> {
     const stat = await fileIo.stat(src);
     if (stat.isDirectory()) {
-      if (!recursive) {
-        throw new Error('目录复制需 recursive=true');
-      }
       await this.copyDirectory(src, dest);
     } else {
       await this.copyFile(src, dest);
