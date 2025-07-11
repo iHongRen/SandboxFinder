@@ -106,14 +106,15 @@ export class RequestHandler {
     const boundary = this.extractBoundary(contentType);
     const formData = await this.parseMultipartFormData(data, boundary);
 
-    // 获取文件和文件名
+    // 获取文件和文件名及分块参数
     const fileData = formData.get('file') as Uint8Array;
     const fileName = formData.get('filename') as string;
     const path = formData.get('path') as string || '';
+    const isFirst = formData.get('isFirst') === '1';
 
     if (fileData && fileName) {
       try {
-        await this.fileManager.writeFileStream(`${path}/${fileName}`, fileData);
+        await this.fileManager.appendFileStream(`${path}/${fileName}`, fileData, isFirst);
         this.onFileChanged?.()
         return this.createHttpResponse(200, JSON.stringify({ success: true }), 'application/json');
       } catch (err) {

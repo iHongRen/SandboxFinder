@@ -864,24 +864,38 @@
                         fileInput.value.click()
                     }
 
+                    const CHUNK_SIZE = 2 * 1024 * 1024 // 2MB
                     const handleFileUpload = async event => {
                         const files = event.target.files
                         if (files.length === 0) return
 
                         for (let i = 0; i < files.length; i++) {
                             const file = files[i]
-                            const formData = new FormData()
-                            formData.append('file', file)
-                            formData.append('filename', file.name)
-                            formData.append('path', currentPath.value)
-                            try {
-                                const res = await fetch('/api/upload', {
-                                    method: 'POST',
-                                    body: formData
-                                })
-                                if (!res.ok) throw new Error(`Failed to upload ${file.name}`)
-                            } catch (e) {
-                                showError(`上传失败：${file.name} - ${e?.message || e}`)
+                            const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
+                            for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+                                const start = chunkIndex * CHUNK_SIZE
+                                const end = Math.min(file.size, start + CHUNK_SIZE)
+                                const chunk = file.slice(start, end)
+
+                                const formData = new FormData()
+                                formData.append('file', chunk)
+                                formData.append('filename', file.name)
+                                formData.append('path', currentPath.value)
+                                formData.append('chunkIndex', chunkIndex)
+                                formData.append('totalChunks', totalChunks)
+                                formData.append('isFirst', chunkIndex === 0 ? '1' : '0')
+                                formData.append('isLast', chunkIndex === totalChunks - 1 ? '1' : '0')
+
+                                try {
+                                    const res = await fetch('/api/upload', {
+                                        method: 'POST',
+                                        body: formData
+                                    })
+                                    if (!res.ok) throw new Error(`Failed to upload chunk ${chunkIndex + 1}/${totalChunks} of ${file.name}`)
+                                } catch (e) {
+                                    showError(`上传失败：${file.name} - ${e?.message || e}`)
+                                    break
+                                }
                             }
                         }
 

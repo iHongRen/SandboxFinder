@@ -113,6 +113,24 @@ export class FileManager {
     return staticPath
   }
 
+  // 分块追加写入大文件，支持 isFirst 控制覆盖/追加
+  public async appendFileStream(filePath: string, data: Uint8Array, isFirst: boolean = false): Promise<void> {
+    const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
+    await this.ensureDirectoryExists(dirPath);
+    const openMode = isFirst
+      ? fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC
+      : fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.APPEND;
+    const file = await fileIo.open(filePath, openMode);
+    const CHUNK_SIZE = 2 * 1024 * 1024;
+    let offset = 0;
+    while (offset < data.length) {
+      const chunk = data.slice(offset, offset + CHUNK_SIZE);
+      await fileIo.write(file.fd, chunk.buffer, { offset: 0, length: chunk.length });
+      offset += CHUNK_SIZE;
+    }
+    await fileIo.close(file.fd);
+  }
+
   // 流式写入大文件，data为Uint8Array
   public async writeFileStream(filePath: string, data: Uint8Array): Promise<void> {
     const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
