@@ -52,8 +52,9 @@ export class FileManager {
     }
   }
 
-  // 获取缓存文件路径（原文件名，需编码）
+  // 获取缓存文件路径（原文件名）
   private getCacheFileName(filePath: string): string {
+    // 只取文件名部分
     return filePath.split('/').pop() || 'file';
   }
 
@@ -75,8 +76,7 @@ export class FileManager {
     for (const entry of this.lruCache.entries()) {
       const key = entry[0]
       const value = entry[1]
-      // 只比对缓存文件名部分（已编码）
-      if (value.cachePath.endsWith('/' + cacheFileName) && key !== filePath) {
+      if (value.cachePath === cachePath && key !== filePath) {
         try {
           await fileIo.unlink(value.cachePath)
         } catch {
@@ -111,6 +111,22 @@ export class FileManager {
       }
     }
     return staticPath
+  }
+
+  // 流式写入大文件，data为Uint8Array
+  public async writeFileStream(filePath: string, data: Uint8Array): Promise<void> {
+    const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
+    await this.ensureDirectoryExists(dirPath);
+    const file =
+      await fileIo.open(filePath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
+    const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB分块
+    let offset = 0;
+    while (offset < data.length) {
+      const chunk = data.slice(offset, offset + CHUNK_SIZE);
+      await fileIo.write(file.fd, chunk.buffer, { offset: 0, length: chunk.length });
+      offset += CHUNK_SIZE;
+    }
+    await fileIo.close(file.fd);
   }
 
   // 检查文件是否存在

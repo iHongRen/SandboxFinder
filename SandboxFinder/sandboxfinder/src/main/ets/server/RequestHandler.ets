@@ -107,13 +107,13 @@ export class RequestHandler {
     const formData = await this.parseMultipartFormData(data, boundary);
 
     // 获取文件和文件名
-    const fileData = formData.get('file') as ArrayBuffer;
+    const fileData = formData.get('file') as Uint8Array;
     const fileName = formData.get('filename') as string;
     const path = formData.get('path') as string || '';
 
     if (fileData && fileName) {
       try {
-        await this.fileManager.writeFile(`${path}/${fileName}`, fileData);
+        await this.fileManager.writeFileStream(`${path}/${fileName}`, fileData);
         this.onFileChanged?.()
         return this.createHttpResponse(200, JSON.stringify({ success: true }), 'application/json');
       } catch (err) {
@@ -194,7 +194,7 @@ export class RequestHandler {
 
         if (contentTypeMatch) {
           // This is likely a file
-          result.set(name, content.buffer); // Store as ArrayBuffer
+          result.set(name, content); // 直接存 Uint8Array
         } else {
           // Assume text content
           result.set(name, Utils.uint8ToStr(content));
