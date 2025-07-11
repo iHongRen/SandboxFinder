@@ -324,17 +324,18 @@
                                         </div>
                                     </div>
 
-                                    <div class="mt-4 flex justify-between items-center">
-                                        <div class="text-sm text-gray-500">
+                                    <div class="mt-4 flex justify-between items-center gap-2">
+                                        <div class="text-sm text-gray-500 min-w-0 flex-1">
                                             <p>大小: {{ formatFileSize(selectedItem.size) }}</p>
                                             <p>修改时间: {{ formatDate(selectedItem.modified) }}</p>
-                                            <p>路径: {{ currentPath }}/{{ selectedItem.name }}</p>
+                                            <p class="break-all" :title="currentPath + '/' + selectedItem.name">路径: {{ currentPath }}/{{ selectedItem.name }}</p>
                                         </div>
-
-                                        <div class="flex space-x-2" v-if="isWriteable">
-                                            <button @click="downloadFile" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm"><i class="fas fa-download mr-1"></i> 下载</button>
-                                            <button @click="deleteItem(selectedItem)" class="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 rounded text-sm">
-                                                <i class="fas fa-trash mr-1"></i> 删除
+                                        <div class="flex-shrink-0 flex space-x-2" v-if="isWriteable">
+                                            <button @click="downloadFile" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm whitespace-nowrap">
+                                                <i class="fas fa-download mr-1"></i>下载
+                                            </button>
+                                            <button @click="deleteItem(selectedItem)" class="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 rounded text-sm whitespace-nowrap">
+                                                <i class="fas fa-trash mr-1"></i>删除
                                             </button>
                                         </div>
                                     </div>
