@@ -737,7 +737,9 @@
                             mov: 'fas fa-file-video text-red-500',
                             avi: 'fas fa-file-video text-red-500',
                             db: 'fas fa-database text-yellow-500',
-                            sqlite: 'fas fa-database text-yellow-500'
+                            sqlite: 'fas fa-database text-yellow-500',
+                            webp: 'fas fa-file-image text-blue-500',
+                            svg: 'fas fa-file-image text-blue-500'
                         }
 
                         return fileIcons[item.ext] || 'fas fa-file text-gray-500'
@@ -797,16 +799,40 @@
                         isPreviewFullscreen.value = !isPreviewFullscreen.value
                     }
 
-                    const downloadFile = () => {
+                    const downloadFile = async () => {
                         if (!selectedItem.value) return
-
-                        // Create a dummy download link
-                        const link = document.createElement('a')
-                        link.href = URL.createObjectURL(new Blob(['Sample content for ' + selectedItem.value.name]))
-                        link.download = selectedItem.value.name
-                        document.body.appendChild(link)
-                        link.click()
-                        document.body.removeChild(link)
+                        const formData = new URLSearchParams()
+                        formData.append('path', selectedItem.value.path)
+                        const result = await safeFetch('/api/read', { body: formData.toString() })
+                        if (result.code !== 200) {
+                            showError('文件下载失败：' + (result?.message || '未知错误'))
+                            return
+                        }
+                        const data = result.data
+                        if (data.type === 'text') {
+                            // fallback: 纯文本等类型，仍用 Blob 下载
+                            const content = data.content
+                            const blob = new Blob([content])
+                            const link = document.createElement('a')
+                            link.href = URL.createObjectURL(blob)
+                            link.download = selectedItem.value.name
+                            document.body.appendChild(link)
+                            link.click()
+                            document.body.removeChild(link)
+                        } else {
+                            // 优先使用后端返回的 url 字段（静态直链下载）
+                            const url = data.url
+                            if (url) {
+                                const link = document.createElement('a')
+                                link.href = url
+                                link.download = selectedItem.value.name
+                                link.target = '_blank'
+                                document.body.appendChild(link)
+                                link.click()
+                                document.body.removeChild(link)
+                                return
+                            }
+                        }
                     }
 
                     const createNewFolder = () => {
