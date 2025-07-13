@@ -78,6 +78,19 @@
     </head>
     <body class="bg-gray-50">
         <div id="app">
+            <!-- 全局上传进度/Loading -->
+            <div v-if="uploading" class="fixed inset-0 flex items-end justify-center pointer-events-none z-50">
+                <div class="mb-8 px-6 py-4 bg-white/90 rounded-lg shadow-xl flex flex-col items-center min-w-[240px] border border-blue-200 animate-fade-in">
+                    <div class="flex items-center space-x-2 mb-2">
+                        <i class="fas fa-spinner fa-spin text-blue-500 text-xl"></i>
+                        <span class="text-blue-700 font-semibold">正在上传文件...</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div class="bg-blue-500 h-2 rounded-full transition-all duration-200" :style="{ width: uploadProgress + '%' }"></div>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1 w-full text-center">{{ uploadStatus }}</div>
+                </div>
+            </div>
             <!-- Error Dialog -->
             <div v-if="errorDialog" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
                 <div class="bg-white rounded-lg shadow-xl p-6 w-96 max-w-full">
@@ -503,6 +516,11 @@
                     const isRenamingItem = ref(false)
                     const itemToRename = ref(null)
                     const newItemName = ref('')
+
+                    // 上传进度相关
+                    const uploading = ref(false)
+                    const uploadProgress = ref(0)
+                    const uploadStatus = ref('')
                     const isDeletingItem = ref(false)
                     const itemToDelete = ref(null)
 
@@ -833,9 +851,30 @@
                         const files = event.target.files
                         if (files.length === 0) return
 
+                        // 判断是否有大于1MB的文件
+                        let needProgress = false
+                        for (let i = 0; i < files.length; i++) {
+                            if (files[i].size > 1024 * 1024) {
+                                needProgress = true
+                                break
+                            }
+                        }
+
+                        let totalSize = 0
+                        let uploadedSize = 0
+                        if (needProgress) {
+                            uploading.value = true
+                            uploadProgress.value = 0
+                            uploadStatus.value = ''
+                            for (let i = 0; i < files.length; i++) {
+                                totalSize += files[i].size
+                            }
+                        }
+
                         for (let i = 0; i < files.length; i++) {
                             const file = files[i]
                             const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
+                            if (needProgress) uploadStatus.value = `正在上传：${file.name}`
                             for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
                                 const start = chunkIndex * CHUNK_SIZE
                                 const end = Math.min(file.size, start + CHUNK_SIZE)
@@ -858,9 +897,29 @@
                                     if (!res.ok) throw new Error(`Failed to upload chunk ${chunkIndex + 1}/${totalChunks} of ${file.name}`)
                                 } catch (e) {
                                     showError(`上传失败：${file.name} - ${e?.message || e}`)
-                                    break
+                                    if (needProgress) {
+                                        uploading.value = false
+                                        uploadStatus.value = '上传失败'
+                                    }
+                                    event.target.value = ''
+                                    return
+                                }
+                                // 更新进度
+                                if (needProgress) {
+                                    uploadedSize += chunk.size
+                                    let percent = Math.floor((uploadedSize / totalSize) * 100)
+                                    if (percent > 100) percent = 100
+                                    uploadProgress.value = percent
                                 }
                             }
+                        }
+
+                        if (needProgress) {
+                            uploadStatus.value = '上传完成'
+                            uploadProgress.value = 100
+                            setTimeout(() => {
+                                uploading.value = false
+                            }, 800)
                         }
 
                         // Refresh file list after upload
@@ -1091,7 +1150,11 @@
                         initiateRename,
                         showMoveDialog,
                         confirmMoveItem,
-                        closeContextMenu
+                        closeContextMenu,
+                        // 上传进度
+                        uploading,
+                        uploadProgress,
+                        uploadStatus
                     }
                 }
             }).mount('#app')
