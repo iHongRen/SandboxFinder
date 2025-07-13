@@ -47,15 +47,15 @@ export class ApiHandler {
 
       // 路由映射
       const routeMap: Record<string, (params: Record<string, Object>) => Promise<Response>> = {
-        '/api/server-info': this.serverInfo.bind(this),
-        '/api/app-info': this.appInfo.bind(this),
-        '/api/read': this.read.bind(this),
-        '/api/ls': this.ls.bind(this),
-        '/api/touch': this.touch.bind(this),
-        '/api/rm': this.rm.bind(this),
-        '/api/mv': this.mv.bind(this),
-        '/api/cp': this.cp.bind(this),
-        '/api/mkdir': this.mkdir.bind(this),
+        '/api/server-info': (params) => this.serverInfo(),
+        '/api/app-info': (params) => this.appInfo(),
+        '/api/read': (params) => this.read(params),
+        '/api/ls': (params) => this.ls(params),
+        '/api/touch': (params) => this.touch(params),
+        '/api/rm': (params) => this.rm(params),
+        '/api/mv': (params) => this.mv(params),
+        '/api/cp': (params) => this.cp(params),
+        '/api/mkdir': (params) => this.mkdir(params),
       };
 
       if (routeMap[pathPart]) {
@@ -63,7 +63,11 @@ export class ApiHandler {
       }
       return { code: 404, message: 'API not found' };
     } catch (error) {
-      return { code: 500, message: (error as Error).message };
+      const err = error as Error
+      if (err.message === 'Access to this path is restricted.') {
+        return { code: 403, message: err.message };
+      }
+      return { code: 500, message: err.message };
     }
   }
 

@@ -329,12 +329,6 @@ export class FileManager {
 
   // 读文本文件
   public async readFile(filePath: string): Promise<string> {
-    // 判断是否是文本文件，不光是txt,html，css,js，还需要其他的文本文件判断
-
-
-    const ext = this.getExtension(filePath)
-
-
     const file = await fileIo.open(filePath, fileIo.OpenMode.READ_ONLY);
     const stat = await fileIo.stat(filePath);
     const buffer = new ArrayBuffer(stat.size);
