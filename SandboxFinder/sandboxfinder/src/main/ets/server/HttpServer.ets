@@ -111,7 +111,7 @@ export class HttpServer {
 
           // 处理完整数据
           let response = await this.clientHandler(new Uint8Array(receivedData));
-          response = this.addCORSHeaders(response);
+          // response = this.addCORSHeaders(response);
           await clientSocket.send({
             data: response
           });
@@ -122,7 +122,7 @@ export class HttpServer {
       // 如果没有Content-Length或者是GET请求，直接处理
       if (!isReceivingBody && headerEndIndex !== -1 && expectedContentLength === 0) {
         let response = await this.clientHandler(new Uint8Array(receivedData));
-        response = this.addCORSHeaders(response);
+        // response = this.addCORSHeaders(response);
         await clientSocket.send({
           data: response
         })
