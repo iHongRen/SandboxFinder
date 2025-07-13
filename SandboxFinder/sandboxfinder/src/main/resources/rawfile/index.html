@@ -617,34 +617,6 @@
                         return currentPath.value.split('/').filter(part => part.trim() !== '')
                     })
 
-                    const isTextFile = computed(() => {
-                        if (!selectedItem.value) return false
-                        const textExtensions = ['txt', 'json', 'xml', 'csv', 'html', 'css', 'js', 'md']
-                        return textExtensions.includes(selectedItem.value.ext)
-                    })
-
-                    const isImageFile = computed(() => {
-                        if (!selectedItem.value) return false
-                        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'tiff', 'ico', 'heic', 'heif', 'avif', 'raw', 'psd', 'ai', 'eps']
-                        return imageExtensions.includes(selectedItem.value.ext)
-                    })
-
-                    const isVideoFile = computed(() => {
-                        if (!selectedItem.value) return false
-                        const videoExtensions = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'flv', 'wmv', 'mpeg', 'mpg', '3gp', 'm4v', 'ogv', 'vob', 'ts', 'm2ts', 'mts']
-                        return videoExtensions.includes(selectedItem.value.ext)
-                    })
-
-                    const isSQLiteFile = computed(() => {
-                        if (!selectedItem.value) return false
-                        const sqliteExtensions = ['db', 'sqlite', 'sqlite3']
-                        return sqliteExtensions.includes(selectedItem.value.ext)
-                    })
-
-                    const isUnsupportedFile = computed(() => {
-                        return selectedItem.value && !isTextFile.value && !isImageFile.value && !isVideoFile.value && !isSQLiteFile.value
-                    })
-
                     // Methods
                     const selectItem = item => {
                         selectedItem.value = item
@@ -707,6 +679,7 @@
                     }
 
                     const formatDate = timestmp => {
+                        if (!timestmp) return '-'
                         const date = new Date(timestmp * 1000)
                         return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
                     }
@@ -744,16 +717,6 @@
                         }
 
                         return fileIcons[item.ext] || 'fas fa-file text-gray-500'
-                    }
-
-                    const getFileIconClass = item => {
-                        if (item.isFolder) return 'folder-icon'
-                        if (isTextFile.value && selectedItem.value?.path === item.path) return 'file-icon-text'
-                        if (isImageFile.value && selectedItem.value?.path === item.path) return 'file-icon-image'
-                        if (isVideoFile.value && selectedItem.value?.path === item.path) return 'file-icon-video'
-                        if (isSQLiteFile.value && selectedItem.value?.path === item.path) return 'file-icon-sqlite'
-
-                        return 'file-icon-other'
                     }
 
                     // 统一后端type判断，支持文本/媒体/其他
@@ -1112,7 +1075,6 @@
                         formatFileSize,
                         formatDate,
                         getFileIcon,
-                        getFileIconClass,
                         previewFile,
                         toggleFullscreen,
                         downloadFile,
