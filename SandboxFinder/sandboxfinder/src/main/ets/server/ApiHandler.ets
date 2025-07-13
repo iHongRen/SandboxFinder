@@ -106,6 +106,7 @@ export class ApiHandler {
       };
     }
 
+
     // 需要静态直链的类型（媒体/其他）
     let url = ''
     if (filePath.startsWith(this.fileManager.getServerPath())) {
@@ -115,6 +116,17 @@ export class ApiHandler {
       // 拷贝到缓存，使用原文件名
       const staticPath = await this.fileManager.getOrCacheFile(filePath)
       url = staticPath
+    }
+
+    // sqlite 文件类型识别，前端可直接用 sql.js 解析
+    if (ext === 'sqlite' || ext === 'db') {
+      return {
+        code: 200,
+        data: {
+          type: 'sqlite',
+          url: url
+        }
+      };
     }
 
     if (contentType.startsWith('image/')) {

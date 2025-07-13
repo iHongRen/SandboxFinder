@@ -4,9 +4,23 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>沙盒文件浏览器</title>
+        <script src="https://cdn.staticfile.net/sql.js/1.12.0/sql-asm.min.js"></script>
+        <script>
+            // 全局SQL对象异步初始化
+            window._sqlJsReady = null
+            window._SQL = null
+            ;(function () {
+                if (window.initSqlJs) {
+                    window._sqlJsReady = window.initSqlJs({ locateFile: file => 'https://cdn.staticfile.net/sql.js/1.12.0/' + file }).then(SQL => {
+                        window._SQL = SQL
+                        return SQL
+                    })
+                }
+            })()
+        </script>
+
         <script src="https://cdn.tailwindcss.com"></script>
         <script src="vue3.5.17.js"></script>
-        <script src="sql.js"></script>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
         <style>
@@ -300,6 +314,39 @@
                                         <!-- 新预览逻辑：后端type统一，支持文本/媒体/其他 -->
                                         <div v-if="previewType === 'text'" class="p-4">
                                             <pre class="whitespace-pre-wrap font-mono text-sm">{{ fileContent }}</pre>
+                                        </div>
+                                        <div v-else-if="previewType === 'sqlite'">
+                                            <div class="p-4">
+                                                <div v-if="sqliteError" class="text-red-500 mb-2">{{ sqliteError }}</div>
+                                                <div v-if="sqliteTables.length === 0 && !sqliteError" class="text-gray-500">未检测到表</div>
+                                                <div v-else>
+                                                    <div class="mb-2 flex flex-wrap gap-2">
+                                                        <button
+                                                            v-for="table in sqliteTables"
+                                                            :key="table"
+                                                            @click="showSQLiteTable(table)"
+                                                            :class="['px-2 py-1 rounded', currentSQLiteTable === table ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-blue-100']"
+                                                        >
+                                                            {{ table }}
+                                                        </button>
+                                                    </div>
+                                                    <div v-if="sqliteColumns.length > 0">
+                                                        <table class="min-w-full text-xs border">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th v-for="col in sqliteColumns" :key="col" class="border px-2 py-1 bg-gray-50">{{ col }}</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr v-for="row in sqliteData" :key="row.__rowid || row[sqliteColumns[0]]">
+                                                                    <td v-for="col in sqliteColumns" :key="col" class="border px-2 py-1">{{ row[col] }}</td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                    <div v-else class="text-gray-400">无数据</div>
+                                                </div>
+                                            </div>
                                         </div>
                                         <div v-else-if="previewType === 'media'">
                                             <template v-if="previewMediaKind === 'image'">
@@ -738,9 +785,12 @@
                     }
 
                     // 统一后端type判断，支持文本/媒体/其他
-                    const previewType = ref('') // text/media/other
+                    const previewType = ref('') // text/media/sqlite/other
                     const previewUrl = ref('')
                     const previewMediaKind = ref('') // image/video/audio
+                    // sqlite相关响应式变量已在上方声明，这里不重复声明
+                    const sqliteError = ref('')
+
                     const previewFile = async item => {
                         selectedItem.value = item
                         isPreviewing.value = true
@@ -748,6 +798,11 @@
                         previewType.value = ''
                         previewUrl.value = ''
                         previewMediaKind.value = ''
+                        sqliteTables.value = []
+                        sqliteColumns.value = []
+                        sqliteData.value = []
+                        currentSQLiteTable.value = ''
+                        sqliteError.value = ''
                         try {
                             const formData = new URLSearchParams()
                             formData.append('path', item.path)
@@ -761,6 +816,24 @@
                                     previewType.value = 'media'
                                     previewUrl.value = data.url
                                     previewMediaKind.value = data.mediaKind || ''
+                                } else if (data.type === 'sqlite') {
+                                    previewType.value = 'sqlite'
+                                    // 拉取二进制并用sql.js解析（异步等待SQL对象）
+                                    try {
+                                        await window._sqlJsReady
+                                        if (!window._SQL) throw new Error('sql.js 加载失败')
+                                        const arrayBuffer = await fetch(data.url).then(r => r.arrayBuffer())
+                                        const db = new window._SQL.Database(new Uint8Array(arrayBuffer))
+                                        window._lastSqliteDb = db // 缓存db对象供切表用
+                                        const tablesRes = db.exec("SELECT name FROM sqlite_master WHERE type='table'")
+                                        const tables = tablesRes[0]?.values.map(row => row[0]) || []
+                                        sqliteTables.value = tables
+                                        if (tables.length > 0) {
+                                            showSQLiteTable(tables[0])
+                                        }
+                                    } catch (err) {
+                                        sqliteError.value = '解析数据库失败: ' + (err.message || err)
+                                    }
                                 } else if (data.type === 'other') {
                                     previewType.value = 'other'
                                     previewUrl.value = data.url
@@ -774,6 +847,32 @@
                             }
                         } catch (e) {
                             fileContent.value = 'Error loading file content.'
+                        }
+                    }
+
+                    // sqlite表切换
+                    const showSQLiteTable = tableName => {
+                        try {
+                            const db = window._lastSqliteDb
+                            if (!db) return
+                            const res = db.exec(`SELECT * FROM "${tableName}" LIMIT 100`)
+                            if (res.length > 0) {
+                                sqliteColumns.value = res[0].columns
+                                sqliteData.value = res[0].values.map(rowArr => {
+                                    const rowObj = {}
+                                    res[0].columns.forEach((col, idx) => {
+                                        rowObj[col] = rowArr[idx]
+                                    })
+                                    rowObj.__rowid = Math.random().toString(36).slice(2)
+                                    return rowObj
+                                })
+                            } else {
+                                sqliteColumns.value = []
+                                sqliteData.value = []
+                            }
+                            currentSQLiteTable.value = tableName
+                        } catch (e) {
+                            sqliteError.value = '读取表失败: ' + (e.message || e)
                         }
                     }
 
@@ -1121,6 +1220,12 @@
                         previewType,
                         previewUrl,
                         previewMediaKind,
+                        sqliteTables,
+                        sqliteColumns,
+                        sqliteData,
+                        currentSQLiteTable,
+                        sqliteError,
+                        showSQLiteTable,
                         isWriteable,
 
                         // Methods

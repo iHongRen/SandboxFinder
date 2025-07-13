@@ -416,6 +416,9 @@ export class FileManager {
       'gz': 'application/gzip',
       'tar': 'application/x-tar',
       'wasm': 'application/wasm',
+      // sqlite 数据库类型
+      'sqlite': 'application/x-sqlite3',
+      'db': 'application/x-sqlite3',
     }
 
     return contentTypeMap[ext] || 'application/octet-stream'
@@ -454,7 +457,7 @@ export class FileManager {
     const plainTextExtensions = [
       'txt', 'html', 'htm', 'css', 'scss', 'sass', 'less', 'js', 'jsx', 'ts', 'tsx', 'plist',
       'json', 'json5', 'jsonc', 'xml', 'yaml', 'yml', 'toml', 'ini', 'env', 'md', 'markdown',
-      'svg', 'vue', 'svelte', 'astro', 'php', 'py', 'java', 'c', 'cpp', 'h', 'hpp',
+      'vue', 'svelte', 'astro', 'php', 'py', 'java', 'c', 'cpp', 'h', 'hpp',
       'go', 'rs', 'swift', 'kt', 'scala', 'rb', 'pl', 'pm', 'lua', 'r', 'sql', 'dbml',
       'sh', 'bash', 'zsh', 'ps1', 'bat', 'cmd', 'gitignore', 'dockerfile', 'editorconfig',
       'eslintrc', 'prettierrc', 'conf', 'config', 'log', 'csv', 'tsv', 'properties',
