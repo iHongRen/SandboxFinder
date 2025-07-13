@@ -4,19 +4,45 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>沙盒文件浏览器</title>
-        <script src="https://cdn.staticfile.net/sql.js/1.12.0/sql-asm.min.js"></script>
+        <!-- sqlite 预览懒加载，不在页面初始化时加载 sql.js -->
         <script>
-            // 全局SQL对象异步初始化
             window._sqlJsReady = null
             window._SQL = null
-            ;(function () {
-                if (window.initSqlJs) {
-                    window._sqlJsReady = window.initSqlJs({ locateFile: file => 'https://cdn.staticfile.net/sql.js/1.12.0/' + file }).then(SQL => {
-                        window._SQL = SQL
-                        return SQL
-                    })
-                }
-            })()
+            window._loadSqlJs = function () {
+                if (window._sqlJsReady) return window._sqlJsReady
+                // 动态插入 sql.js 脚本
+                window._sqlJsReady = new Promise((resolve, reject) => {
+                    if (window.initSqlJs) {
+                        // 已经有initSqlJs，直接初始化
+                        window
+                            .initSqlJs({ locateFile: file => file })
+                            .then(SQL => {
+                                window._SQL = SQL
+                                resolve(SQL)
+                            })
+                            .catch(reject)
+                        return
+                    }
+                    const script = document.createElement('script')
+                    script.src = 'sql.js'
+                    script.onload = () => {
+                        if (!window.initSqlJs) {
+                            reject(new Error('sql.js 加载失败'))
+                            return
+                        }
+                        window
+                            .initSqlJs({ locateFile: file => file })
+                            .then(SQL => {
+                                window._SQL = SQL
+                                resolve(SQL)
+                            })
+                            .catch(reject)
+                    }
+                    script.onerror = () => reject(new Error('sql.js 加载失败'))
+                    document.head.appendChild(script)
+                })
+                return window._sqlJsReady
+            }
         </script>
 
         <script src="https://cdn.tailwindcss.com"></script>
@@ -818,9 +844,9 @@
                                     previewMediaKind.value = data.mediaKind || ''
                                 } else if (data.type === 'sqlite') {
                                     previewType.value = 'sqlite'
-                                    // 拉取二进制并用sql.js解析（异步等待SQL对象）
+                                    // 懒加载 sql.js
                                     try {
-                                        await window._sqlJsReady
+                                        await window._loadSqlJs()
                                         if (!window._SQL) throw new Error('sql.js 加载失败')
                                         const arrayBuffer = await fetch(data.url).then(r => r.arrayBuffer())
                                         const db = new window._SQL.Database(new Uint8Array(arrayBuffer))

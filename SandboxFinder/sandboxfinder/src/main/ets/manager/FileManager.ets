@@ -24,8 +24,8 @@ interface LRUCacheEntry {
 }
 
 export class FileManager {
-  private serverDir = '/sandboxfinder-static-server'
-  private staticDir = '/static'
+  private serverDir = 'sandboxfinder-static-server'
+  private staticDir = 'static'
   private serverPath: string
   private context: Context
   private lruCache: Map<string, LRUCacheEntry> = new Map()
@@ -33,8 +33,7 @@ export class FileManager {
 
   constructor(context: Context) {
     this.context = context
-    const serverPath = context.filesDir + this.serverDir
-    this.serverPath = serverPath
+    this.serverPath = context.filesDir + '/' + this.serverDir
     this.initServerDir()
   }
 
@@ -46,7 +45,8 @@ export class FileManager {
     try {
       await this.ensureDirectoryExists(this.serverPath)
       await this.createServerFiles()
-      await this.ensureDirectoryExists(this.serverPath + this.staticDir)
+      const staticPath = this.serverPath + '/' + this.staticDir
+      await this.ensureDirectoryExists(staticPath)
     } catch (error) {
       console.error('初始化根目录失败:', error)
     }
@@ -61,7 +61,7 @@ export class FileManager {
   // LRU缓存：获取或拷贝到缓存，并返回缓存路径（原文件名，重名直接覆盖）
   public async getOrCacheFile(filePath: string): Promise<string> {
     const cacheFileName = this.getCacheFileName(filePath)
-    const staticPath = this.staticDir + '/' + cacheFileName
+    const staticPath = '/' + this.staticDir + '/' + cacheFileName
     const cachePath = this.serverPath + staticPath
     const now = Date.now()
     // 命中缓存（同路径）
@@ -167,7 +167,8 @@ export class FileManager {
 
   private async createServerFile(fileName: string) {
     const path = this.serverPath + '/' + fileName
-    const buf = await this.context.resourceManager.getRawFileContent(fileName)
+    const rawPath = this.serverDir + '/' + fileName
+    const buf = await this.context.resourceManager.getRawFileContent(rawPath)
     const outFile = await fileIo.open(path, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC)
     await fileIo.write(outFile.fd, buf.buffer)
     await fileIo.close(outFile.fd)
