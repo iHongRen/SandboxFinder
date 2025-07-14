@@ -90,16 +90,7 @@
                     <div class="text-xs text-gray-500 mt-1 w-full text-center">{{ uploadStatus }}</div>
                 </div>
             </div>
-            <!-- Error Dialog -->
-            <div v-if="errorDialog" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-                <div class="bg-white rounded-lg shadow-xl p-6 w-96 max-w-full">
-                    <h3 class="text-lg font-semibold mb-4 text-red-600 flex items-center"><i class="fas fa-exclamation-triangle mr-2"></i>错误</h3>
-                    <div class="text-gray-700 break-words whitespace-pre-line">{{ errorMsg }}</div>
-                    <div class="flex justify-end mt-6">
-                        <button @click="errorDialog = false" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">关闭</button>
-                    </div>
-                </div>
-            </div>
+
             <div class="flex h-screen overflow-hidden">
                 <!-- Sidebar -->
                 <div class="sidebar bg-white shadow-md w-64 p-2 border-r flex flex-col" :class="{ 'active': showSidebar }">
@@ -203,7 +194,12 @@
                     <div class="flex-1 overflow-hidden">
                         <div class="flex h-full">
                             <!-- File List -->
-                            <div :class="['overflow-y-auto p-2 bg-white', isPreviewing ? 'w-1/2 border-r' : 'w-full']">
+                            <div
+                                :class="['overflow-y-auto p-2 bg-white transition-all duration-150', isPreviewing ? 'w-1/2 border-r' : 'w-full', dragOver ? 'ring-4 ring-blue-400 bg-blue-50' : '']"
+                                @dragover.prevent="isWriteable && onDragOver($event)"
+                                @dragleave.prevent="isWriteable && onDragLeave($event)"
+                                @drop.prevent="isWriteable && onDrop($event)"
+                            >
                                 <div class="flex items-center justify-between mb-2 px-1">
                                     <h3 class="font-medium text-gray-700">{{ filteredItems.length }} 个项目</h3>
                                     <div class="flex space-x-1" v-if="isWriteable">
@@ -280,7 +276,7 @@
                                     >
                                         <div class="flex flex-col items-center text-center">
                                             <div class="file-icon mb-2">
-                                                <i :class="getFileIcon(item)"></i>
+                                                <i :class="getFileIcon(item)" class="fa-lg"></i>
                                             </div>
                                             <div class="text-xs font-medium text-gray-900 break-words w-full">{{ item.name }}</div>
                                             <div class="text-xs text-gray-500 mt-1">{{ formatFileSize(item.size) }}</div>
@@ -505,6 +501,19 @@
 
             <!-- Upload Dialog -->
             <input type="file" ref="fileInput" @change="handleFileUpload" class="hidden" multiple />
+
+            <div
+                v-if="toastVisible"
+                :class="[
+                    'fixed left-1/2 -translate-x-1/2 top-8 z-[9999] min-w-[180px] max-w-[320px] px-4 py-2 rounded shadow-lg animate-fade-in flex items-center justify-center',
+                    toastType === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                ]"
+                style="pointer-events: none"
+            >
+                <i v-if="toastType === 'error'" class="fas fa-exclamation-circle mr-2"></i>
+                <i v-else class="fas fa-check-circle mr-2"></i>
+                {{ toastMsg }}
+            </div>
         </div>
 
         <script>
@@ -515,10 +524,7 @@
                     // 全局错误弹窗
                     const errorDialog = ref(false)
                     const errorMsg = ref('')
-                    const showError = msg => {
-                        errorMsg.value = typeof msg === 'string' ? msg : msg?.message || '发生未知错误'
-                        errorDialog.value = true
-                    }
+
                     // State
                     const items = ref([])
                     const selectedItem = ref(null)
@@ -560,6 +566,51 @@
                     const isDeletingItem = ref(false)
                     const itemToDelete = ref(null)
 
+                    // Toast 错误提示
+                    const toastMsg = ref('')
+                    const toastVisible = ref(false)
+                    const toastType = ref('error') // 'success' | 'error'
+
+                    const showToast = (msg, type = 'error') => {
+                        toastMsg.value = typeof msg === 'string' ? msg : msg?.message || '发生未知错误'
+                        toastType.value = type
+                        toastVisible.value = false
+                        setTimeout(() => {
+                            toastVisible.value = true
+                            setTimeout(() => {
+                                toastVisible.value = false
+                            }, 2500)
+                        }, 10)
+                    }
+
+                    // 拖放上传相关
+                    const dragOver = ref(false)
+                    let dragCounter = 0
+                    const onDragOver = e => {
+                        e.preventDefault()
+                        dragCounter++
+                        dragOver.value = true
+                    }
+                    const onDragLeave = e => {
+                        e.preventDefault()
+                        dragCounter--
+                        if (dragCounter <= 0) {
+                            dragOver.value = false
+                            dragCounter = 0
+                        }
+                    }
+                    const onDrop = e => {
+                        e.preventDefault()
+                        dragCounter = 0
+                        dragOver.value = false
+                        const files = e.dataTransfer.files
+                        if (files && files.length > 0) {
+                            // 直接批量上传，复用 handleFileUpload 逻辑
+                            const fakeEvent = { target: { files } }
+                            handleFileUpload(fakeEvent, true)
+                        }
+                    }
+
                     const isWriteable = computed(() => {
                         if (!currentPath.value) return false
                         const depth = currentPath.value.split('/').filter(p => p).length
@@ -573,7 +624,7 @@
                             const res = await fetch(url, { method, headers: defaultHeaders, body })
                             return isJson ? await res.json() : await res.text()
                         } catch (e) {
-                            showError('网络请求异常：' + (e?.message || e))
+                            showToast('网络请求异常：' + (e?.message || e))
                             throw e
                         }
                     }
@@ -587,7 +638,7 @@
                                 items.value = result.data
                                 allFolders.value = items.value.filter(item => item.isFolder)
                             } else {
-                                showError('加载目录失败：' + (result?.message || result))
+                                showToast('加载目录失败：' + (result?.message || result))
                                 items.value = []
                                 allFolders.value = []
                             }
@@ -605,7 +656,7 @@
                             if (result.code === 200 && Array.isArray(result.data)) {
                                 shortcuts.value = result.data.filter(item => item.isFolder)
                             } else {
-                                showError('加载快捷目录失败：' + (result?.message || result))
+                                showToast('加载快捷目录失败：' + (result?.message || result))
                                 shortcuts.value = []
                             }
                             if (shortcuts.value.length > 0) {
@@ -844,7 +895,7 @@
                                     fileContent.value = '不支持的文件类型'
                                 }
                             } else {
-                                showError('文件预览失败：' + (result?.message || '未知错误'))
+                                showToast('文件预览失败：' + (result?.message || '未知错误'))
                                 fileContent.value = 'Error loading file content.'
                             }
                         } catch (e) {
@@ -888,7 +939,7 @@
                         formData.append('path', selectedItem.value.path)
                         const result = await safeFetch('/api/read', { body: formData.toString() })
                         if (result.code !== 200) {
-                            showError('文件下载失败：' + (result?.message || '未知错误'))
+                            showToast('文件下载失败：' + (result?.message || '未知错误'))
                             return
                         }
                         const data = result.data
@@ -932,14 +983,15 @@
                         safeFetch('/api/mkdir', { body: formData.toString() })
                             .then(result => {
                                 if (result.code === 200) {
+                                    showToast('新建成功', 'success')
                                     loadPath(currentPath.value)
                                     isCreatingFolder.value = false
                                 } else {
-                                    showError('新建文件夹失败：' + (result?.message || result))
+                                    showToast('新建文件夹失败：' + (result?.message || result))
                                 }
                             })
                             .catch(e => {
-                                showError('新建文件夹失败：' + (e?.message || e))
+                                showToast('新建文件夹失败：' + (e?.message || e))
                             })
                     }
 
@@ -950,12 +1002,12 @@
                     const CHUNK_SIZE = 2 * 1024 * 1024 // 2MB
                     const handleFileUpload = async event => {
                         const files = event.target.files
-                        if (files.length === 0) return
+                        if (!files || files.length === 0) return
 
-                        // 判断是否有大于1MB的文件
+                        // 大于512KB的文件才显示上传进度
                         let needProgress = false
                         for (let i = 0; i < files.length; i++) {
-                            if (files[i].size > 1024 * 1024) {
+                            if (files[i].size > 0.5 * 1024 * 1024) {
                                 needProgress = true
                                 break
                             }
@@ -972,6 +1024,8 @@
                             }
                         }
 
+                        let allSuccess = true
+                        let failedFiles = []
                         for (let i = 0; i < files.length; i++) {
                             const file = files[i]
                             const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
@@ -997,13 +1051,16 @@
                                     })
                                     if (!res.ok) throw new Error(`Failed to upload chunk ${chunkIndex + 1}/${totalChunks} of ${file.name}`)
                                 } catch (e) {
-                                    showError(`上传失败：${file.name} - ${e?.message || e}`)
+                                    allSuccess = false
+                                    failedFiles.push(file.name)
+                                    showToast(`上传失败：${file.name} - ${e?.message || e}`, 'error')
                                     if (needProgress) {
                                         uploading.value = false
                                         uploadStatus.value = '上传失败'
                                     }
-                                    event.target.value = ''
-                                    return
+                                    // 拖放上传无 input，需判断
+                                    if (event.target && event.target.value !== undefined) event.target.value = ''
+                                    break
                                 }
                                 // 更新进度
                                 if (needProgress) {
@@ -1023,10 +1080,17 @@
                             }, 800)
                         }
 
-                        // Refresh file list after upload
+                        // 刷新文件列表
                         await loadPath(currentPath.value)
-                        // Reset file input
-                        event.target.value = ''
+                        // 拖放上传无 input，需判断
+                        if (event.target && event.target.value !== undefined) event.target.value = ''
+
+                        // 成功/失败 toast
+                        if (allSuccess) {
+                            showToast('上传成功', 'success')
+                        } else if (failedFiles.length < files.length) {
+                            showToast('部分文件上传失败', 'error')
+                        }
                     }
 
                     const renameItem = item => {
@@ -1053,8 +1117,9 @@
                             formData.append('rename', 'true') // 标记为重命名操作
                             const result = await safeFetch('/api/mv', { body: formData.toString() })
                             if (result.code !== 200) {
-                                showError('重命名失败：' + (result?.message || result))
+                                showToast('重命名失败：' + (result?.message || result))
                             } else {
+                                showToast('重命名成功', 'success')
                                 await loadPath(currentPath.value)
                             }
                         } catch (e) {}
@@ -1083,8 +1148,9 @@
                             formData.append('path', itemToDelete.value.path)
                             const result = await safeFetch('/api/rm', { body: formData.toString() })
                             if (result.code !== 200) {
-                                showError('删除失败：' + (result?.message || result))
+                                showToast('删除失败：' + (result?.message || result))
                             } else {
+                                showToast('删除成功', 'success')
                                 await loadPath(currentPath.value)
                                 if (selectedItem.value && selectedItem.value.path === itemToDelete.value.path) {
                                     selectedItem.value = null
@@ -1183,9 +1249,10 @@
                     })
 
                     return {
-                        errorDialog,
-                        errorMsg,
-                        showError,
+                        showToast,
+                        toastVisible,
+                        toastMsg,
+                        toastType,
                         // State
                         items,
                         selectedItem,
@@ -1215,6 +1282,12 @@
                         newItemName,
                         isDeletingItem,
                         itemToDelete,
+
+                        // 拖放上传
+                        dragOver,
+                        onDragOver,
+                        onDragLeave,
+                        onDrop,
 
                         // Computed
                         pathParts,
