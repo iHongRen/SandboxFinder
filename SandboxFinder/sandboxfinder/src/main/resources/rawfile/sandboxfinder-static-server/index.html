@@ -4,51 +4,10 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>沙盒文件浏览器</title>
-        <!-- sqlite 预览懒加载，不在页面初始化时加载 sql.js -->
-        <script>
-            window._sqlJsReady = null
-            window._SQL = null
-            window._loadSqlJs = function () {
-                if (window._sqlJsReady) return window._sqlJsReady
-                // 动态插入 sql.js 脚本
-                window._sqlJsReady = new Promise((resolve, reject) => {
-                    if (window.initSqlJs) {
-                        // 已经有initSqlJs，直接初始化
-                        window
-                            .initSqlJs({ locateFile: file => file })
-                            .then(SQL => {
-                                window._SQL = SQL
-                                resolve(SQL)
-                            })
-                            .catch(reject)
-                        return
-                    }
-                    const script = document.createElement('script')
-                    script.src = 'sql.js'
-                    script.onload = () => {
-                        if (!window.initSqlJs) {
-                            reject(new Error('sql.js 加载失败'))
-                            return
-                        }
-                        window
-                            .initSqlJs({ locateFile: file => file })
-                            .then(SQL => {
-                                window._SQL = SQL
-                                resolve(SQL)
-                            })
-                            .catch(reject)
-                    }
-                    script.onerror = () => reject(new Error('sql.js 加载失败'))
-                    document.head.appendChild(script)
-                })
-                return window._sqlJsReady
-            }
-        </script>
 
         <script src="https://cdn.tailwindcss.com"></script>
-        <script src="vue3.5.17.js"></script>
+        <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-
         <style>
             .file-icon {
                 display: inline-flex;
@@ -1295,4 +1254,35 @@
             }).mount('#app')
         </script>
     </body>
+
+    <!-- sqlite 预览懒加载，不在页面初始化时加载 sql.js -->
+    <script>
+        window._sqlJsReady = null
+        window._SQL = null
+        window._loadSqlJs = function () {
+            if (window._sqlJsReady) return window._sqlJsReady
+            // 动态插入 sql.js 脚本
+            window._sqlJsReady = new Promise((resolve, reject) => {
+                const script = document.createElement('script')
+                script.src = 'https://cdn.staticfile.net/sql.js/1.12.0/sql-wasm.min.js'
+                script.onload = () => {
+                    if (!window.initSqlJs) {
+                        reject(new Error('sql.js 加载失败'))
+                        return
+                    }
+
+                    window
+                        .initSqlJs({ locateFile: file => 'https://cdn.staticfile.net/sql.js/1.12.0/' + file })
+                        .then(SQL => {
+                            window._SQL = SQL
+                            resolve(SQL)
+                        })
+                        .catch(reject)
+                }
+                script.onerror = () => reject(new Error('sql.js 加载失败'))
+                document.head.appendChild(script)
+            })
+            return window._sqlJsReady
+        }
+    </script>
 </html>

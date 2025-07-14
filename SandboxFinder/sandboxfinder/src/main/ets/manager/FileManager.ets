@@ -160,10 +160,6 @@ export class FileManager {
   private async createServerFiles(): Promise<void> {
     try {
       await this.copyToServerPath("index.html")
-      await this.copyToServerPath("vue3.5.17.js")
-      await this.copyToServerPath("sql.js")
-      await this.copyToServerPath("fontawesome.css")
-
     } catch (error) {
       console.error('创建沙箱Finder失败:', error)
     }
