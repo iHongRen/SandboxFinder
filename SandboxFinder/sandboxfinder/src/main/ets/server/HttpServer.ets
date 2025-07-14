@@ -24,7 +24,7 @@ export class HttpServer {
   }
 
   // 启动服务器
-  public async startServer(port: number): Promise<ServerInfo | void> {
+  public async startServer(port: number): Promise<ServerInfo> {
     try {
       this.tcpServer = socket.constructTCPSocketServerInstance();
 
@@ -47,16 +47,19 @@ export class HttpServer {
 
       await this.tcpServer.listen(bindAddress);
       // 获取实际的端口和地址
-      const localAddress: socket.NetAddress = await this.tcpServer.getLocalAddress();
-      // this.serverPort = localAddress.port || 8080;
+      await this.tcpServer.getLocalAddress();
       this.serverAddress = this.getLocalIP()
-      console.log(`沙盒查看器启动成功，地址: ${this.serverAddress}:${port}`);
+      this.printPrettyStartupMessage(this.serverAddress, port)
       return {
         address: this.serverAddress,
         port: port
       }
     } catch (error) {
-      console.error('沙盒查看器启动失败:', error);
+      console.error('沙箱浏览器启动失败:', error);
+      return {
+        address: '',
+        port: 0
+      }
     }
   }
 
@@ -188,5 +191,26 @@ export class HttpServer {
     const ip =
       (ipAddress >>> 24) + "." + (ipAddress >> 16 & 0xFF) + "." + (ipAddress >> 8 & 0xFF) + "." + (ipAddress & 0xFF);
     return ip
+  }
+
+  printPrettyStartupMessage(serverAddress: string, port: number) {
+    const boxWidth = 60;
+    const title = "沙箱浏览器启动成功";
+    const message = `请浏览器访问: http://${serverAddress}:${port}`;
+
+    const horizontalLine = `-${"-".repeat(boxWidth - 2)}-`;
+    const emptyLine = ` ${" ".repeat(boxWidth - 4)} `;
+    const titleLine = ` ${title.padStart(Math.floor((boxWidth + title.length) / 2) - 1).padEnd(boxWidth - 2)} `;
+    const messageLine = ` ${message.padStart(Math.floor((boxWidth + message.length) / 2) - 1).padEnd(boxWidth - 2)} `;
+
+    console.log(`
+${horizontalLine}
+${emptyLine}
+${titleLine}
+${emptyLine}
+${messageLine}
+${emptyLine}
+${horizontalLine}
+`);
   }
 }

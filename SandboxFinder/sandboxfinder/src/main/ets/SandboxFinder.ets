@@ -2,12 +2,13 @@
  * @fileName : SandboxFinder.ets
  * @author : @cxy
  * @date : 2025/7/7
- * @description : 沙盒查看器
+ * @description : 沙盒浏览器
  */
 import { FileManager } from "./manager/FileManager";
 import { HttpServer } from "./server/HttpServer";
 import { RequestHandler } from "./server/RequestHandler";
 import { Context } from "@kit.AbilityKit";
+import { ServerInfo } from "./models/ServerInfo";
 
 
 export class SandboxFinder {
@@ -18,16 +19,16 @@ export class SandboxFinder {
   private port: number
   private context: Context
 
-  static start(context: Context, port:number=7777) {
+  static async run(context: Context, port: number = 7777): Promise<ServerInfo> {
     SandboxFinder.instance = new SandboxFinder(context, port)
-    SandboxFinder.instance.startServer()
+    return await SandboxFinder.instance.startServer()
   }
 
   static stop() {
     SandboxFinder.instance.stopServer()
   }
 
-  private constructor(context: Context, port:number) {
+  private constructor(context: Context, port: number) {
     this.context = context
     this.port = port
     this.fileManager = new FileManager(this.context)
@@ -42,9 +43,9 @@ export class SandboxFinder {
   }
 
   // 启动服务器
-  private async startServer() {
+  private async startServer(): Promise<ServerInfo> {
     const serverInfo = await this.server.startServer(this.port);
-    if (serverInfo) {
+    if (serverInfo.address) {
       // 创建请求处理器
       this.requestHandler = new RequestHandler(this.fileManager, serverInfo);
     }

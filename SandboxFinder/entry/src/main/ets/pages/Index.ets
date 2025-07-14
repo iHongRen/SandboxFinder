@@ -1,22 +1,19 @@
 @Entry
 @Component
 struct Index {
-  @State message: string = 'Hello World';
+  @StorageProp('server') server: string = ''
 
   build() {
-    RelativeContainer() {
-      Text(this.message)
-        .id('HelloWorld')
-        .fontSize($r('app.float.page_text_font_size'))
+    Column({ space: 10 }) {
+      Text('请浏览器访问下面地址：').fontSize(16)
+      Text(this.server)
+        .fontSize(20)
         .fontWeight(FontWeight.Bold)
-        .alignRules({
-          center: { anchor: '__container__', align: VerticalAlign.Center },
-          middle: { anchor: '__container__', align: HorizontalAlign.Center }
-        })
-        .onClick(() => {
-          this.message = 'Welcome';
-        })
+        .copyOption(CopyOptions.LocalDevice)
     }
+    .alignItems(HorizontalAlign.Start)
+    .justifyContent(FlexAlign.Center)
+    .padding({ left: 20, bottom: 50 })
     .height('100%')
     .width('100%')
   }
