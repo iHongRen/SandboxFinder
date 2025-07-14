@@ -16,14 +16,10 @@ import { Utils } from '../utils/Utils';
 export class RequestHandler {
   private fileManager: FileManager;
   private apiHandler: ApiHandler;
-  onFileChanged?: () => void
 
   constructor(fileManager: FileManager, serverInfo: ServerInfo) {
     this.fileManager = fileManager;
     this.apiHandler = new ApiHandler(fileManager, serverInfo);
-    this.apiHandler.onFileChanged = () => {
-      this.onFileChanged?.();
-    }
   }
 
   // 解析 HTTP 头部
@@ -115,7 +111,6 @@ export class RequestHandler {
     if (fileData && fileName) {
       try {
         await this.fileManager.appendFileStream(`${path}/${fileName}`, fileData, isFirst);
-        this.onFileChanged?.()
         return this.createHttpResponse(200, JSON.stringify({ success: true }), 'application/json');
       } catch (err) {
         return this.createHttpResponse(500, 'File save failed');

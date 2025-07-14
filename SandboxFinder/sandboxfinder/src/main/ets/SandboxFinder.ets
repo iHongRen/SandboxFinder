@@ -17,7 +17,6 @@ export class SandboxFinder {
   private requestHandler?: RequestHandler
   private port: number
   private context: Context
-  private onFileChanged?: () => void
 
   static start(context: Context, port:number=7777) {
     SandboxFinder.instance = new SandboxFinder(context, port)
@@ -48,9 +47,6 @@ export class SandboxFinder {
     if (serverInfo) {
       // 创建请求处理器
       this.requestHandler = new RequestHandler(this.fileManager, serverInfo);
-      this.requestHandler.onFileChanged = () => {
-        this.onFileChanged?.()
-      }
     }
     return serverInfo;
   }

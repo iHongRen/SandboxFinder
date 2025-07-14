@@ -13,7 +13,6 @@ export class ApiHandler {
   private fileManager: FileManager;
   private serverAddress: string;
   private serverPort: number;
-  onFileChanged?: () => void
 
   constructor(fileManager: FileManager, serverInfo: ServerInfo) {
     this.fileManager = fileManager;
@@ -176,7 +175,6 @@ export class ApiHandler {
       return { code: 400, message: 'Missing path' };
     }
     await this.fileManager.writeFile(filePath, new ArrayBuffer(0));
-    this.onFileChanged?.();
     return { code: 200, data: { success: true } };
   }
 
@@ -186,7 +184,6 @@ export class ApiHandler {
       return { code: 400, message: 'Missing path' };
     }
     await this.fileManager.remove(filePath);
-    this.onFileChanged?.();
     return { code: 200, data: { success: true } };
   }
 
@@ -200,7 +197,6 @@ export class ApiHandler {
     }
     // 如果是项目重命名，可以在这里加特殊处理（如日志、校验等）
     await this.fileManager.move(src, dest);
-    this.onFileChanged?.();
     return { code: 200, data: { success: true, rename: isRename } };
   }
 
@@ -211,7 +207,6 @@ export class ApiHandler {
       return { code: 400, message: 'Missing src or dest' };
     }
     await this.fileManager.copy(src, dest);
-    this.onFileChanged?.();
     return { code: 200, data: { success: true } };
   }
 
@@ -221,7 +216,6 @@ export class ApiHandler {
       return { code: 400, message: 'Missing path' };
     }
     await this.fileManager.mkdir(dirPath, '');
-    this.onFileChanged?.();
     return { code: 200, data: { success: true } };
   }
 }
