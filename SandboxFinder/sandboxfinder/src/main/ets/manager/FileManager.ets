@@ -37,6 +37,10 @@ export class FileManager {
     this.contextFilesDir = context.filesDir
     this.serverPath = context.filesDir + '/' + this.serverDir
     this.initServerDir()
+
+    const app_name = 'app.string.app_name'
+    const name = this.context.resourceManager.getStringSync($r(app_name))
+
   }
 
   public getServerPath() {
@@ -157,17 +161,18 @@ export class FileManager {
   // 创建沙箱Finder
   private async createServerFiles(): Promise<void> {
     try {
-      await this.createServerFile("index.html")
-      await this.createServerFile("vue3.5.17.js")
-      await this.createServerFile("sql.js")
-      await this.createServerFile("fontawesome.css")
+      await this.copyToServerPath("index.html")
+      await this.copyToServerPath("vue3.5.17.js")
+      await this.copyToServerPath("sql.js")
+      await this.copyToServerPath("fontawesome.css")
 
     } catch (error) {
       console.error('创建沙箱Finder失败:', error)
     }
   }
 
-  private async createServerFile(fileName: string) {
+  // 拷贝到沙箱服务器目录
+  private async copyToServerPath(fileName: string) {
     const path = this.serverPath + '/' + fileName
     const rawPath = this.serverDir + '/' + fileName
     const buf = await this.context.resourceManager.getRawFileContent(rawPath)

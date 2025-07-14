@@ -64,9 +64,6 @@ export class ApiHandler {
       return { code: 404, message: 'API not found' };
     } catch (error) {
       const err = error as Error
-      if (err.message === 'Access to this path is restricted.') {
-        return { code: 403, message: err.message };
-      }
       return { code: 500, message: err.message };
     }
   }
@@ -85,6 +82,8 @@ export class ApiHandler {
         versionCode: this.bundleInfo.versionCode,
         versionName: this.bundleInfo.versionName,
         bundleName: this.bundleInfo.name,
+        name: ''
+
       }
     }
   }
@@ -94,9 +93,6 @@ export class ApiHandler {
     if (!filePath) {
       return { code: 400, message: 'Missing path' };
     }
-    // 获取文件扩展名和MIME类型
-    const ext = this.fileManager.getExtension(filePath);
-    const contentType = this.fileManager.getContentType(filePath);
 
     // 纯文本类型
     if (this.fileManager.isPlainText(filePath)) {
@@ -110,20 +106,21 @@ export class ApiHandler {
       };
     }
 
-
     // 需要静态直链的类型（媒体/其他）
     let url = ''
-    if (filePath.startsWith(this.fileManager.getServerPath())) {
+    const serverPath = this.fileManager.getServerPath()
+    if (filePath.startsWith(serverPath)) {
       // 已在静态目录
-      url = `${filePath.substring(this.fileManager.getServerPath().length)}`
+      url = `${filePath.substring(serverPath.length)}`
     } else {
       // 拷贝到缓存，使用原文件名
-      const staticPath = await this.fileManager.getOrCacheFile(filePath)
-      url = staticPath
+      url = await this.fileManager.getOrCacheFile(filePath)
     }
 
+    const contentType = this.fileManager.getContentType(filePath);
+
     // sqlite 文件类型识别，前端可直接用 sql.js 解析
-    if (ext === 'sqlite' || ext === 'db') {
+    if (contentType.includes('sqlite')) {
       return {
         code: 200,
         data: {
