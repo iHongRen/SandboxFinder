@@ -28,11 +28,13 @@ export class FileManager {
   private staticDir = 'static'
   private serverPath: string
   private context: Context
+  private contextFilesDir: string
   private lruCache: Map<string, LRUCacheEntry> = new Map()
   private maxCacheCount = 10 // 最大缓存数
 
   constructor(context: Context) {
     this.context = context
+    this.contextFilesDir = context.filesDir
     this.serverPath = context.filesDir + '/' + this.serverDir
     this.initServerDir()
   }
@@ -236,7 +238,10 @@ export class FileManager {
     }
 
 
-    const filenames = await fileIo.listFile(dirPath, { recursion: false });
+    let filenames = await fileIo.listFile(dirPath);
+    if (dirPath === this.contextFilesDir) {
+      filenames = filenames.filter(e => e !== this.serverDir)
+    }
     const fileInfos = await Promise.all(filenames.map(async filename => {
       const filePath = dirPath + '/' + filename;
       const stat = await fileIo.stat(filePath);
