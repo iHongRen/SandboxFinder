@@ -208,10 +208,10 @@
                                     <h3 class="font-medium text-gray-700">{{ filteredItems.length }} 个项目</h3>
                                     <div class="flex space-x-1" v-if="isWriteable">
                                         <button @click="createNewFolder" class="p-1 rounded hover:bg-gray-200" title="新建文件夹">
-                                            <i class="fas fa-folder-plus text-blue-500"></i>
+                                            <i class="fas fa-folder-plus text-blue-500 fa-lg"></i>
                                         </button>
                                         <button @click="uploadFile" class="p-1 rounded hover:bg-gray-200" title="上传文件">
-                                            <i class="fas fa-file-upload text-green-500"></i>
+                                            <i class="fas fa-file-upload text-green-500 fa-lg"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -752,22 +752,35 @@
                             zip: 'fas fa-file-zipper text-yellow-500',
                             rar: 'fas fa-file-zipper text-yellow-500',
                             txt: 'fas fa-file-lines text-gray-500',
+
                             json: 'fas fa-file-code text-yellow-500',
+                            json5: 'fas fa-file-code text-yellow-500',
+                            plist: 'fas fa-file-code text-yellow-500',
                             js: 'fas fa-file-code text-yellow-400',
                             css: 'fas fa-file-code text-blue-500',
                             html: 'fas fa-file-code text-orange-500',
                             py: 'fas fa-file-code text-blue-400',
+                            ets: 'fas fa-file-code text-purple-500',
+
                             jpg: 'fas fa-file-image text-green-500',
                             jpeg: 'fas fa-file-image text-green-500',
                             png: 'fas fa-file-image text-blue-500',
                             gif: 'fas fa-file-image text-purple-500',
+                            webp: 'fas fa-file-image text-blue-500',
+                            svg: 'fas fa-file-image text-blue-500',
+
                             mp4: 'fas fa-file-video text-red-500',
                             mov: 'fas fa-file-video text-red-500',
                             avi: 'fas fa-file-video text-red-500',
+
                             db: 'fas fa-database text-yellow-500',
                             sqlite: 'fas fa-database text-yellow-500',
-                            webp: 'fas fa-file-image text-blue-500',
-                            svg: 'fas fa-file-image text-blue-500'
+
+                            mp3: 'fas fa-file-audio text-purple-500',
+                            wav: 'fas fa-file-audio text-purple-500',
+                            flac: 'fas fa-file-audio text-purple-500',
+                            m4a: 'fas fa-file-audio text-purple-500',
+                            aac: 'fas fa-file-audio text-purple-500'
                         }
 
                         return fileIcons[item.ext] || 'fas fa-file text-gray-500'
