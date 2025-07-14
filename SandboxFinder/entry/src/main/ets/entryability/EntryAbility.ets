@@ -1,22 +1,15 @@
-import { AbilityConstant, common, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
-import { hilog } from '@kit.PerformanceAnalysisKit';
+import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
-import { fileIo, Filter, ListFileOptions } from '@kit.CoreFileKit';
-import { SandboxFinder } from 'sandboxfinder';
 
-const DOMAIN = 0x0000;
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
 
-    // 绑定到端口 7777
-    SandboxFinder.start(this.context, 7777)
-  }
-
-  async onDestroy() {
-    // 销毁时 stop
-    await SandboxFinder.stop()
+    import('sandboxfinder').then((ns: ESObject) => {
+      // 绑定到端口 7777
+      ns.SandboxFinder.start(this.context, 7777)
+    });
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {

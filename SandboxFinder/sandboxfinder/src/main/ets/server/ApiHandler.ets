@@ -8,10 +8,8 @@
 import { ServerInfo } from '../models/ServerInfo';
 import { FileManager } from '../manager/FileManager';
 import { Response } from './Response';
-import { bundleManager } from "@kit.AbilityKit";
 
 export class ApiHandler {
-  private bundleInfo = bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT)
   private fileManager: FileManager;
   private serverAddress: string;
   private serverPort: number;
@@ -76,15 +74,10 @@ export class ApiHandler {
   }
 
   async appInfo(): Promise<Response> {
+    const info = await this.fileManager.getAppInfo()
     return {
       code: 200,
-      data: {
-        versionCode: this.bundleInfo.versionCode,
-        versionName: this.bundleInfo.versionName,
-        bundleName: this.bundleInfo.name,
-        name: ''
-
-      }
+      data: info
     }
   }
 

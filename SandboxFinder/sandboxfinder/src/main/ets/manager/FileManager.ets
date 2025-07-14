@@ -8,6 +8,7 @@
 import { fileIo } from '@kit.CoreFileKit'
 import { FileItem } from '../models/FileItem'
 import { Utils } from '../utils/Utils'
+import { bundleManager } from "@kit.AbilityKit";
 
 class SandboxDir {
   static el1 = '/data/storage/el1'
@@ -31,16 +32,13 @@ export class FileManager {
   private contextFilesDir: string
   private lruCache: Map<string, LRUCacheEntry> = new Map()
   private maxCacheCount = 10 // 最大缓存数
+  private bundleInfo = bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT)
 
   constructor(context: Context) {
     this.context = context
     this.contextFilesDir = context.filesDir
     this.serverPath = context.filesDir + '/' + this.serverDir
     this.initServerDir()
-
-    const app_name = 'app.string.app_name'
-    const name = this.context.resourceManager.getStringSync($r(app_name))
-
   }
 
   public getServerPath() {
@@ -241,7 +239,6 @@ export class FileManager {
     if (dirPath === '/') {
       return this.contextDirs()
     }
-
 
     let filenames = await fileIo.listFile(dirPath);
     if (dirPath === this.contextFilesDir) {
@@ -480,5 +477,21 @@ export class FileManager {
       'nodemon.json', 'nginx.conf', 'htaccess', 'php.ini', 'robots.txt', 'sitemap.xml', 'rss', 'atom'
     ]
     return plainTextExtensions.includes(ext)
+  }
+
+  async getAppInfo(): Promise<Record<string, Object>> {
+    let name = ''
+    const labelId = this.bundleInfo.appInfo?.labelId
+    if (labelId) {
+      name = this.context.resourceManager.getStringSync(labelId)
+    } else {
+      name = this.context.resourceManager.getStringByNameSync('app_name')
+    }
+    return {
+      'versionCode': this.bundleInfo.versionCode,
+      'versionName': this.bundleInfo.versionName,
+      'bundleName': this.bundleInfo.name,
+      'name': name
+    }
   }
 }
