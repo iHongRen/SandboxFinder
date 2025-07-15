@@ -73,6 +73,11 @@
                 z-index: 100;
                 min-width: 200px;
             }
+
+            /* 更快的旋转动画 */
+            .fa-fast-spin {
+                animation: fa-spin 1s linear infinite; /* 默认是 2s，改为 0.5s */
+            }
         </style>
     </head>
     <body class="bg-gray-50">
@@ -96,7 +101,7 @@
                 <div class="sidebar bg-white shadow-md w-64 p-2 border-r flex flex-col" :class="{ 'active': showSidebar }">
                     <div>
                         <div class="flex items-center justify-between p-2">
-                            <h1 class="text-xl font-bold text-gray-800">鸿蒙沙箱浏览器</h1>
+                            <h1 @click="navigateToRoot()" class="text-xl font-bold text-gray-800 cursor-pointer">鸿蒙沙箱浏览器</h1>
                             <button @click="showSidebar = false" class="md:hidden p-1 rounded hover:bg-gray-200">
                                 <i class="fas fa-times text-gray-600"></i>
                             </button>
@@ -147,7 +152,7 @@
                             </div>
                             <div class="flex items-center">
                                 <i class="fab fa-github mr-2 text-gray-500"></i>
-                                <a href="https://github.com/iHongRen/SandboxFinder" target="_blank" class="hover:text-blue-500">https://github.com/iHongRen/SandboxFinder</a>
+                                <a href="https://github.com/iHongRen/SandboxFinder" target="_blank" class="hover:text-blue-500">github.com/iHongRen/SandboxFinder</a>
                             </div>
                         </div>
                     </div>
@@ -200,16 +205,25 @@
                                 @dragleave.prevent="isWriteable && onDragLeave($event)"
                                 @drop.prevent="isWriteable && onDrop($event)"
                             >
-                                <div class="flex items-center justify-between mb-2 px-1">
-                                    <h3 class="font-medium text-gray-700">{{ filteredItems.length }} 个项目</h3>
-                                    <div class="flex space-x-1" v-if="isWriteable">
-                                        <button @click="createNewFolder" class="p-1 rounded hover:bg-gray-200" title="新建文件夹">
-                                            <i class="fas fa-folder-plus text-blue-500 fa-lg"></i>
+                                <div class="flex items-center justify-start mb-2 px-1 gap-2">
+                                    <div class="flex space-x-1 items-center">
+                                        <button @click="goUpLevel" class="p-1 rounded hover:bg-gray-200" title="返回上一级" v-if="!isRootPath(currentPath)">
+                                            <i class="fa-solid fa-arrow-left text-gray-500"></i>
                                         </button>
-                                        <button @click="uploadFile" class="p-1 rounded hover:bg-gray-200" title="上传文件">
-                                            <i class="fas fa-file-upload text-green-500 fa-lg"></i>
+                                        <button @click="refreshCurrentPath" class="p-1 rounded hover:bg-gray-200" title="刷新当前目录">
+                                            <i :class="['fas', 'fa-rotate-right', 'text-gray-500', isRefreshing ? 'fa-fast-spin' : '']"></i>
                                         </button>
+                                        <template v-if="isWriteable">
+                                            <button @click="createNewFolder" class="p-1 rounded hover:bg-gray-200" title="新建文件夹">
+                                                <i class="fas fa-folder-plus text-blue-500 fa-lg"></i>
+                                            </button>
+                                            <button @click="uploadFile" class="p-1 rounded hover:bg-gray-200" title="上传文件">
+                                                <i class="fas fa-file-upload text-green-500 fa-lg"></i>
+                                            </button>
+                                        </template>
                                     </div>
+
+                                    <h3 class="font-medium text-gray-700">{{ filteredItems.length }} 个项目</h3>
                                 </div>
 
                                 <!-- List View -->
@@ -649,23 +663,26 @@
                     }
 
                     const loadShortcuts = async () => {
-                        try {
-                            const formData = new URLSearchParams()
-                            formData.append('path', '/')
-                            const result = await safeFetch('/api/ls', { body: formData.toString() })
-                            if (result.code === 200 && Array.isArray(result.data)) {
-                                shortcuts.value = result.data.filter(item => item.isFolder)
-                            } else {
-                                showToast('加载快捷目录失败：' + (result?.message || result))
-                                shortcuts.value = []
-                            }
-                            if (shortcuts.value.length > 0) {
-                                navigateToPath(shortcuts.value[0].path)
-                            } else {
-                                navigateToPath('/')
-                            }
-                        } catch (e) {
-                            navigateToPath('/data/storage') // Fallback
+                        const formData = new URLSearchParams()
+                        formData.append('path', '/')
+                        const result = await safeFetch('/api/ls', { body: formData.toString() })
+                        if (result.code === 200 && Array.isArray(result.data)) {
+                            shortcuts.value = result.data.filter(item => item.isFolder)
+                        } else {
+                            showToast('加载快捷目录失败：' + (result?.message || result))
+                            shortcuts.value = []
+                        }
+                        navigateToRoot()
+                    }
+
+                    const navigateToRoot = () => {
+                        if (shortcuts.value.length > 0) {
+                            navigateToPath(shortcuts.value[0].path)
+                        } else {
+                            currentPath.value = '/data'
+                            selectedItem.value = null
+                            isPreviewing.value = false
+                            loadPath(currentPath.value)
                         }
                     }
 
@@ -722,14 +739,26 @@
                         return currentPath.value.split('/').filter(part => part.trim() !== '')
                     })
 
-                    // Methods
+                    // 刷新当前目录
+                    const isRefreshing = ref(false)
+                    const refreshCurrentPath = async () => {
+                        if (isRefreshing.value) return
+                        isRefreshing.value = true
+                        try {
+                            await loadPath(currentPath.value)
+                        } finally {
+                            setTimeout(() => {
+                                isRefreshing.value = false
+                            }, 100)
+                        }
+                    }
                     const selectItem = item => {
                         selectedItem.value = item
                         isPreviewing.value = false
                     }
-
                     const isRootPath = path => {
-                        return path == '/data'
+                        // 允许根目录和快捷目录都不可返回
+                        return !path || path === '/' || path === '/data'
                     }
 
                     const navigateToPath = path => {
@@ -748,6 +777,19 @@
 
                     const navigateTo = index => {
                         const parts = pathParts.value.slice(0, index + 1)
+                        const newPath = '/' + parts.join('/')
+                        currentPath.value = newPath
+                        selectedItem.value = null
+                        isPreviewing.value = false
+                        loadPath(currentPath.value)
+                    }
+
+                    // 返回上一级目录
+                    const goUpLevel = () => {
+                        if (isRootPath(currentPath.value)) return
+                        const parts = currentPath.value.split('/').filter(Boolean)
+                        if (parts.length === 0) return
+                        parts.pop()
                         const newPath = '/' + parts.join('/')
                         currentPath.value = newPath
                         selectedItem.value = null
@@ -1211,11 +1253,9 @@
                         const oldPath = itemToMove.value.path
                         const newPath = moveTargetPath.value + '/' + itemToMove.value.name
 
-                        // Update the item's path
                         itemToMove.value.path = newPath
                         itemToMove.value.modified = new Date().toISOString()
 
-                        // If it's a folder, we also need to update all items inside it
                         if (itemToMove.value.isFolder) {
                             const oldFolderPath = oldPath
                             const newFolderPath = newPath
@@ -1226,21 +1266,17 @@
                                 }
                             })
 
-                            // Update allFolders array
                             allFolders.value = items.value.filter(item => item.isFolder)
                         }
 
                         isMovingItem.value = false
                     }
 
-                    // Template ref
                     const fileInput = ref(null)
 
-                    // Lifecycle hooks
                     onMounted(() => {
                         loadShortcuts()
                         loadAppInfo()
-                        // Close context menu when pressing Escape
                         document.addEventListener('keydown', e => {
                             if (e.key === 'Escape' && contextMenu.value.visible) {
                                 contextMenu.value.visible = false
@@ -1305,6 +1341,7 @@
 
                         // Methods
                         navigateToPath,
+                        navigateToRoot,
                         selectItem,
                         enterFolder,
                         navigateTo,
@@ -1331,10 +1368,15 @@
                         showMoveDialog,
                         confirmMoveItem,
                         closeContextMenu,
+                        isRootPath,
+                        goUpLevel,
                         // 上传进度
                         uploading,
                         uploadProgress,
-                        uploadStatus
+                        uploadStatus,
+
+                        refreshCurrentPath,
+                        isRefreshing
                     }
                 }
             }).mount('#app')
@@ -1356,7 +1398,6 @@
                         reject(new Error('sql.js 加载失败'))
                         return
                     }
-
                     window
                         .initSqlJs({ locateFile: file => 'https://cdn.staticfile.net/sql.js/1.12.0/' + file })
                         .then(SQL => {
