@@ -5,7 +5,7 @@
  * @description :  文件处理
  */
 
-import { fileIo } from '@kit.CoreFileKit'
+import { fileIo, statfs } from '@kit.CoreFileKit'
 import { FileItem } from '../models/FileItem'
 import { Utils } from '../utils/Utils'
 import { bundleManager } from "@kit.AbilityKit";
@@ -247,9 +247,9 @@ export class FileManager {
       const item = new FileItem();
       item.name = filename;
       item.path = filePath;
-      item.size = stat.size
       item.modified = stat.mtime
       item.isFolder = stat.isDirectory();
+      item.size = stat.size
       item.ext = item.isFolder ? '' : this.getExtension(filePath)
       return item;
     }));
@@ -331,15 +331,14 @@ export class FileManager {
     await fileIo.close(file.fd);
   }
 
-  // 读文本文件
-  public async readFile(filePath: string): Promise<string> {
+  // 读取文件
+  public async readFile(filePath: string): Promise<ArrayBuffer> {
     const file = await fileIo.open(filePath, fileIo.OpenMode.READ_ONLY);
     const stat = await fileIo.stat(filePath);
     const buffer = new ArrayBuffer(stat.size);
     await fileIo.read(file.fd, buffer);
     await fileIo.close(file.fd);
-    const content = Utils.uint8ToStr(new Uint8Array(buffer))
-    return content
+    return buffer
   }
 
   canMkdir(path: string): boolean {
@@ -447,12 +446,19 @@ export class FileManager {
   }
 
   getExtension(filePath: string): string {
-    const ext = filePath.split('.').pop()?.toLowerCase() || ''
+    const ext = filePath.includes('.') ? filePath.split('.').pop()!.toLowerCase() : ''
     return ext
   }
 
   isPlainText(filePath: string): boolean {
     const ext = this.getExtension(filePath)
+    if (!ext) {
+      // 判断filePath在目录 .../preferences/ 下
+      if (filePath.startsWith(this.context.preferencesDir)) {
+        return true
+      }
+    }
+
     const plainTextExtensions = [
       'txt', 'html', 'htm', 'css', 'scss', 'sass', 'less', 'js', 'jsx', 'ts', 'tsx', 'plist',
       'json', 'json5', 'jsonc', 'xml', 'yaml', 'yml', 'toml', 'ini', 'env', 'md', 'markdown',
@@ -474,6 +480,76 @@ export class FileManager {
       'nodemon.json', 'nginx.conf', 'htaccess', 'php.ini', 'robots.txt', 'sitemap.xml', 'rss', 'atom'
     ]
     return plainTextExtensions.includes(ext)
+  }
+
+  // 判断文件是否为图片
+  public async isImageFile(filePath: string): Promise<boolean> {
+    const ext = this.getExtension(filePath)
+    if (!ext) {
+      const file = await fileIo.open(filePath, fileIo.OpenMode.READ_ONLY);
+      const header = new Uint8Array(8);
+      await fileIo.read(file.fd, header.buffer, { offset: 0, length: 8 });
+      await fileIo.close(file.fd);
+
+      // PNG
+      if (header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4E && header[3] === 0x47) {
+        return true;
+      }
+      // JPEG
+      if (header[0] === 0xFF && header[1] === 0xD8 && header[2] === 0xFF) {
+        return true;
+      }
+      // GIF
+      if (header[0] === 0x47 && header[1] === 0x49 && header[2] === 0x46) {
+        return true;
+      }
+      // BMP
+      if (header[0] === 0x42 && header[1] === 0x4D) {
+        return true;
+      }
+      // WebP
+      if (header[0] === 0x52 && header[1] === 0x49 && header[2] === 0x46 && header[3] === 0x46) {
+        return true;
+      }
+      // ICO
+      if (header[0] === 0x00 && header[1] === 0x00 && header[2] === 0x01 && header[3] === 0x00) {
+        return true;
+      }
+      // TIFF
+      if (header[0] === 0x4D && header[1] === 0x4D && header[2] === 0x00 && header[3] === 0x2A) {
+        return true;
+      }
+      // PSD
+      if (header[0] === 0x38 && header[1] === 0x42 && header[2] === 0x50 && header[3] === 0x53) {
+        return true;
+      }
+      // AVIF
+      if (header[0] === 0x00 && header[1] === 0x00 && header[2] === 0x01 && header[3] === 0x66) {
+        return true;
+      }
+      // HEIF
+      if (header[0] === 0x4D && header[1] === 0x4D && header[2] === 0x00 && header[3] === 0x2A) {
+        return true;
+      }
+      // JPEG XR
+      if (header[0] === 0x78 && header[1] === 0x79 && header[2] === 0x7A && header[3] === 0x75) {
+        return true;
+      }
+      // TIFF
+      if (header[0] === 0x4D && header[1] === 0x4D && header[2] === 0x00 && header[3] === 0x2A) {
+        return true;
+      }
+      // svg
+      if (header[0] === 0x3C && header[1] === 0x73 && header[2] === 0x76 && header[3] === 0x67) {
+        return true;
+      }
+      return false
+    }
+
+    const imageExtensions = [
+      'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'ico', 'tiff', 'psd', 'avif', 'heif', 'heic', 'jxr', 'svg'
+    ]
+    return imageExtensions.includes(ext);
   }
 
   async getAppInfo(): Promise<Record<string, Object>> {

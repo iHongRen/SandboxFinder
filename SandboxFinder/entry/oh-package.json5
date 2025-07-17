@@ -6,7 +6,7 @@
   "author": "",
   "license": "",
   "dependencies": {
-    "sandboxfinder": 'file:../sandboxfinder'
+    "@cxy/sandboxfinder": 'file:../sandboxfinder'
   }
 }
 

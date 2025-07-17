@@ -218,13 +218,8 @@ export class RequestHandler {
         return this.createHttpResponse(404, 'File not found');
       }
 
-      // 读取文件内容
-      const file = await fs.open(filePath, fs.OpenMode.READ_ONLY);
-      const stat = await fs.stat(filePath);
-      const buffer = new ArrayBuffer(stat.size);
-      await fs.read(file.fd, buffer);
-      await fs.close(file.fd);
-
+      const buffer = await this.fileManager.readFile(filePath)
+      
       // 获取文件的MIME类型
       const contentType = this.fileManager.getContentType(filePath);
 

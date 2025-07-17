@@ -1,9 +1,9 @@
 {
-  "name": "sandboxfinder",
+  "name": "@cxy/sandboxfinder",
   "version": "1.0.0",
-  "description": "Please describe the basic information.",
+  "description": "HarmonyOS Sandbox finder",
   "main": "Index.ets",
-  "author": "",
+  "author": "@仙银",
   "license": "Apache-2.0",
   "dependencies": {}
 }

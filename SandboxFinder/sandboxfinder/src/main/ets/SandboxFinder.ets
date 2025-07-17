@@ -24,8 +24,8 @@ export class SandboxFinder {
     return await SandboxFinder.instance.startServer()
   }
 
-  static stop() {
-    SandboxFinder.instance.stopServer()
+  static async stop() {
+    await SandboxFinder.instance.stopServer()
   }
 
   private constructor(context: Context, port: number) {

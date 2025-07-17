@@ -8,6 +8,7 @@
 import { ServerInfo } from '../models/ServerInfo';
 import { FileManager } from '../manager/FileManager';
 import { Response } from './Response';
+import { Utils } from '../utils/Utils';
 
 export class ApiHandler {
   private fileManager: FileManager;
@@ -88,7 +89,8 @@ export class ApiHandler {
 
     // 纯文本类型
     if (this.fileManager.isPlainText(filePath)) {
-      const content = await this.fileManager.readFile(filePath);
+      const buffer = await this.fileManager.readFile(filePath);
+      const content = Utils.uint8ToStr(new Uint8Array(buffer))
       return {
         code: 200,
         data: {
@@ -108,6 +110,17 @@ export class ApiHandler {
       // 拷贝到缓存，使用原文件名
       url = await this.fileManager.getOrCacheFile(filePath)
     }
+    
+    if (await this.fileManager.isImageFile(filePath)) {
+      return {
+        code: 200,
+        data: {
+          type: 'media',
+          url: url,
+          mediaKind: 'image'
+        }
+      };
+    }
 
     const contentType = this.fileManager.getContentType(filePath);
 
@@ -122,16 +135,6 @@ export class ApiHandler {
       };
     }
 
-    if (contentType.startsWith('image/')) {
-      return {
-        code: 200,
-        data: {
-          type: 'media',
-          url: url,
-          mediaKind: 'image'
-        }
-      };
-    }
     if (contentType.startsWith('video/')) {
       return {
         code: 200,

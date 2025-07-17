@@ -211,8 +211,13 @@
                                             <i class="fa-solid fa-arrow-left text-gray-500"></i>
                                         </button>
                                         <button @click="refreshCurrentPath" class="p-1 rounded hover:bg-gray-200" title="刷新当前目录">
-                                            <i :class="['fas', 'fa-rotate-right', 'text-gray-500', isRefreshing ? 'fa-fast-spin' : '']"></i>
+                                            <i :class="['fas', 'fa-rotate-right', 'text-gray-500', 'fa-lg', isRefreshing ? 'fa-fast-spin' : '']"></i>
                                         </button>
+
+                                        <button @click="copyPath" class="p-1 rounded hover:bg-gray-200" title="复制路径">
+                                            <i class="fa-solid fa-clipboard text-gray-400 fa-lg"></i>
+                                        </button>
+
                                         <template v-if="isWriteable">
                                             <button @click="createNewFolder" class="p-1 rounded hover:bg-gray-200" title="新建文件夹">
                                                 <i class="fas fa-folder-plus text-blue-500 fa-lg"></i>
@@ -1135,6 +1140,21 @@
                         }
                     }
 
+                    const copyPath = async () => {
+                        const text = selectedItem.value ? selectedItem.value.path : currentPath.value
+                        const textarea = document.createElement('textarea')
+                        textarea.value = text
+                        document.body.appendChild(textarea)
+                        textarea.select()
+                        try {
+                            document.execCommand('copy')
+                            showToast('复制路径成功', 'success')
+                        } catch (err) {
+                            showToast(err?.message || '复制失败', 'error')
+                        }
+                        document.body.removeChild(textarea)
+                    }
+
                     const renameItem = item => {
                         itemToRename.value = item || selectedItem.value
                         if (!itemToRename.value) return
@@ -1376,7 +1396,8 @@
                         uploadStatus,
 
                         refreshCurrentPath,
-                        isRefreshing
+                        isRefreshing,
+                        copyPath
                     }
                 }
             }).mount('#app')
