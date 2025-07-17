@@ -2,7 +2,7 @@
  * @fileName : SandboxFinder.ets
  * @author : @cxy
  * @date : 2025/7/7
- * @description : 沙盒浏览器
+ * @description : 沙箱浏览器
  */
 import { FileManager } from "./manager/FileManager";
 import { HttpServer } from "./server/HttpServer";

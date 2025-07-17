@@ -1,2 +1,2 @@
 # SandboxFinder
-鸿蒙沙盒查看器
+鸿蒙沙箱查看器
