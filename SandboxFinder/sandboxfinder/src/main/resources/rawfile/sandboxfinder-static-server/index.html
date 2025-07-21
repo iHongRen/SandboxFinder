@@ -190,7 +190,7 @@
                             </div>
 
                             <button @click="toggleViewMode" class="p-2 rounded hover:bg-gray-200">
-                                <i class="fas" :class="{ 'fa-th-large': viewMode === 'grid', 'fa-list': viewMode === 'list' }"></i>
+                                <i class="fas" :class="{ 'fa-th-large': viewMode === 'list', 'fa-list': viewMode === 'grid' }"></i>
                             </button>
                         </div>
                     </div>
@@ -208,7 +208,7 @@
                                 <div class="flex items-center justify-start mb-2 px-1 gap-2">
                                     <div class="flex space-x-1 items-center">
                                         <button @click="goUpLevel" class="p-1 rounded hover:bg-gray-200" title="返回上一级" v-if="!isRootPath(currentPath)">
-                                            <i class="fa-solid fa-arrow-left text-gray-500"></i>
+                                            <i class="fa-solid fa-arrow-left fa-lg text-gray-500"></i>
                                         </button>
                                         <button @click="refreshCurrentPath" class="p-1 rounded hover:bg-gray-200" title="刷新当前目录">
                                             <i :class="['fas', 'fa-rotate-right', 'text-gray-500', 'fa-lg', isRefreshing ? 'fa-fast-spin' : '']"></i>
@@ -906,7 +906,8 @@
                         try {
                             const formData = new URLSearchParams()
                             formData.append('path', item.path)
-                            const result = await safeFetch('/api/read', { body: formData.toString() })
+                            const body = formData.toString()
+                            const result = await safeFetch('/api/read', { body: body })
                             if (result.code === 200 && result.data) {
                                 const data = result.data
                                 if (data.type === 'text') {

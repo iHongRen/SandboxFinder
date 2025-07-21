@@ -21,13 +21,6 @@ export class ApiHandler {
     this.serverPort = serverInfo.port;
   }
 
-  private decodeParam(val: Object): string {
-    if (typeof val !== 'string') {
-      return '';
-    }
-    return decodeURIComponent(val.replace(/\+/g, '%20'));
-  }
-
   public async handleApiRequest(method: string, url: string,
     bodyParams: Record<string, Object> = {}): Promise<Response> {
     try {
@@ -39,9 +32,17 @@ export class ApiHandler {
       if (queryString) {
         queryString.split('&').forEach(pair => {
           const kv = pair.split('=');
-          params[kv[0]] = decodeURIComponent(kv[1]);
+          params[kv[0]] = kv[1]
         });
       }
+
+      const keys = Object.keys(params);
+      keys.forEach(key => {
+        const value = params[key]
+        if (typeof value === 'string') {
+          params[key] = decodeURIComponent(value.replace(/\+/g, '%20'))
+        }
+      });
 
       // 路由映射
       const routeMap: Record<string, (params: Record<string, Object>) => Promise<Response>> = {
@@ -82,7 +83,7 @@ export class ApiHandler {
   }
 
   async read(params: Record<string, Object>): Promise<Response> {
-    const filePath = this.decodeParam(params['path']);
+    const filePath = params['path'] as string
     if (!filePath) {
       return { code: 400, message: 'Missing path' };
     }
@@ -110,7 +111,7 @@ export class ApiHandler {
       // 拷贝到缓存，使用原文件名
       url = await this.fileManager.getOrCacheFile(filePath)
     }
-    
+
     if (await this.fileManager.isImageFile(filePath)) {
       return {
         code: 200,
@@ -167,13 +168,13 @@ export class ApiHandler {
   }
 
   async ls(params: Record<string, Object>): Promise<Response> {
-    const dirPath = this.decodeParam(params['path']) || '/';
-    const list = await this.fileManager.listDir(dirPath);
+    const filePath = params['path'] as string
+    const list = await this.fileManager.listDir(filePath);
     return { code: 200, data: list }
   }
 
   async touch(params: Record<string, Object>): Promise<Response> {
-    const filePath = this.decodeParam(params['path']);
+    const filePath = params['path'] as string
     if (!filePath) {
       return { code: 400, message: 'Missing path' };
     }
@@ -182,7 +183,7 @@ export class ApiHandler {
   }
 
   async rm(params: Record<string, Object>): Promise<Response> {
-    const filePath = this.decodeParam(params['path']);
+    const filePath = params['path'] as string
     if (!filePath) {
       return { code: 400, message: 'Missing path' };
     }
@@ -192,8 +193,8 @@ export class ApiHandler {
 
   // 支持项目重命名的 mv
   async mv(params: Record<string, Object>): Promise<Response> {
-    const src = this.decodeParam(params['src']);
-    const dest = this.decodeParam(params['dest']);
+    const src = params['src'] as string
+    const dest = params['dest'] as string
     const isRename = params['rename'] === 'true';
     if (!src || !dest) {
       return { code: 400, message: 'Missing src or dest' };
@@ -204,8 +205,8 @@ export class ApiHandler {
   }
 
   async cp(params: Record<string, Object>): Promise<Response> {
-    const src = this.decodeParam(params['src']);
-    const dest = this.decodeParam(params['dest']);
+    const src = params['src'] as string
+    const dest = params['dest'] as string
     if (!src || !dest) {
       return { code: 400, message: 'Missing src or dest' };
     }
@@ -214,11 +215,11 @@ export class ApiHandler {
   }
 
   async mkdir(params: Record<string, Object>): Promise<Response> {
-    const dirPath = this.decodeParam(params['path']);
-    if (!dirPath) {
+    const filePath = params['path'] as string
+    if (!filePath) {
       return { code: 400, message: 'Missing path' };
     }
-    await this.fileManager.mkdir(dirPath, '');
+    await this.fileManager.mkdir(filePath, '');
     return { code: 200, data: { success: true } };
   }
 }

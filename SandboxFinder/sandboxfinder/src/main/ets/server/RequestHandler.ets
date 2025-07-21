@@ -75,7 +75,7 @@ export class RequestHandler {
         }
         const arr = pair.split('=');
         const k = arr[0];
-        const v = arr[1] ? decodeURIComponent(arr[1]) : '';
+        const v = arr[1];
         bodyParams[k] = v;
       });
     }
@@ -219,7 +219,7 @@ export class RequestHandler {
       }
 
       const buffer = await this.fileManager.readFile(filePath)
-      
+
       // 获取文件的MIME类型
       const contentType = this.fileManager.getContentType(filePath);
 
