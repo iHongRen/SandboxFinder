@@ -19,7 +19,7 @@ export class SandboxFinder {
   private port: number
   private context: Context
 
-  static async run(context: Context, port: number = 7777): Promise<ServerInfo> {
+  static async run(context: Context = getContext(), port: number = 7777): Promise<ServerInfo> {
     SandboxFinder.instance = new SandboxFinder(context, port)
     return await SandboxFinder.instance.startServer()
   }

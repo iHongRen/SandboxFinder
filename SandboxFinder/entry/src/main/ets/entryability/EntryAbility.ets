@@ -16,7 +16,7 @@ export default class EntryAbility extends UIAbility {
       if (BuildProfile.DEBUG) {
         import('@cxy/sandboxfinder').then(async (ns: ESObject) => {
           // 绑定到端口 7777
-          ns.SandboxFinder.run(this.context, 7777).then((server: ESObject) => {
+          ns.SandboxFinder.run().then((server: ESObject) => {
             if (server.address) {
               AppStorage.setOrCreate('server', `http://${server.address}:${server.port}`)
             }
