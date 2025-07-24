@@ -1,9 +1,22 @@
 {
   "name": "@cxy/sandboxfinder",
   "version": "1.0.0",
-  "description": "HarmonyOS Sandbox finder",
+  "description": "鸿蒙沙箱文件浏览器，开发必备",
   "main": "Index.ets",
   "author": "@仙银",
+  "homepage": "https://github.com/iHongRen",
   "license": "Apache-2.0",
+  "keywords": [
+    "sandbox",
+    "sandboxfinder",
+    "浏览器",
+    "预览器",
+    "沙箱",
+    "沙盒",
+    "文件查看",
+    "文件",
+    "file",
+    "目录"
+  ],
   "dependencies": {}
 }

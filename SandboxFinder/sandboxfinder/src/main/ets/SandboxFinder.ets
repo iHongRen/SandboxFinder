@@ -7,7 +7,7 @@
 import { FileManager } from "./manager/FileManager";
 import { HttpServer } from "./server/HttpServer";
 import { RequestHandler } from "./server/RequestHandler";
-import { Context } from "@kit.AbilityKit";
+import { common, Context } from "@kit.AbilityKit";
 import { ServerInfo } from "./models/ServerInfo";
 
 
@@ -19,11 +19,21 @@ export class SandboxFinder {
   private port: number
   private context: Context
 
-  static async run(context: Context = getContext(), port: number = 7777): Promise<ServerInfo> {
+  /**
+   * 运行服务
+   * @param port  端口号，默认7777
+   * @param context UIAbilityContext, 默认 getContext()
+   * @returns ServerInfo =》 { address: string , port: number }
+   */
+  static async run(port: number = 7777,
+    context: common.UIAbilityContext = getContext() as common.UIAbilityContext): Promise<ServerInfo> {
     SandboxFinder.instance = new SandboxFinder(context, port)
     return await SandboxFinder.instance.startServer()
   }
 
+  /**
+   * 停止服务
+   */
   static async stop() {
     await SandboxFinder.instance.stopServer()
   }

@@ -150,7 +150,7 @@
                                 <i class="fas fa-user mr-2 text-gray-500"></i>
                                 <a href="https://github.com/iHongRen" target="_blank" class="hover:text-blue-500">作者: @仙银</a>
                             </div>
-                            <a class="flex items-center" href="https://github.com/iHongRen" target="_blank">
+                            <a class="flex items-center cursor-pointer" @click="showDonationPopup = true">
                                 <svg t="1753185700592" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="38717" width="12" height="12">
                                     <path d="M512 512m-512 0a512 512 0 1 0 1024 0 512 512 0 1 0-1024 0Z" fill="#F75280" p-id="38718"></path>
                                     <path
@@ -165,8 +165,29 @@
                                     ></path>
                                 </svg>
 
-                                <span class="ml-2 hover:text-blue-500">小额打赏</span>
+                                <span class="ml-2 hover:text-blue-500">打赏开发者</span>
                             </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Donation Popup -->
+                <div v-if="showDonationPopup" class="fixed bottom-4 left-4 bg-white rounded-lg shadow-xl p-4 w-80 border z-50">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-lg font-semibold">打赏开发者</h3>
+
+                        <button @click="showDonationPopup = false" class="p-1 rounded hover:bg-gray-200">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="flex justify-around">
+                        <div class="text-center">
+                            <img src="https://xiguanlu.oss-cn-chengdu.aliyuncs.com/donation/imgs/wx.png" alt="WeChat Pay" class="w-32 h-32" />
+                            <p class="text-sm mt-1">微信扫码</p>
+                        </div>
+                        <div class="text-center">
+                            <img src="https://xiguanlu.oss-cn-chengdu.aliyuncs.com/donation/imgs/ali.png" alt="Alipay" class="w-32 h-32" />
+                            <p class="text-sm mt-1">支付宝扫码</p>
                         </div>
                     </div>
                 </div>
@@ -590,6 +611,7 @@
                     const isRenamingItem = ref(false)
                     const itemToRename = ref(null)
                     const newItemName = ref('')
+                    const showDonationPopup = ref(false)
 
                     // 上传进度相关
                     const uploading = ref(false)
@@ -1350,6 +1372,7 @@
                         isRenamingItem,
                         itemToRename,
                         newItemName,
+                        showDonationPopup,
                         isDeletingItem,
                         itemToDelete,
 
