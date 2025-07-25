@@ -1,4 +1,4 @@
-#  鸿蒙沙箱浏览器 - SandboxFinder
+#  鸿蒙沙箱浏览器 - [SandboxFinder](https://github.com/iHongRen/SandboxFinder)
 
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)  ![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)    
