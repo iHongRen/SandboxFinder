@@ -1,12 +1,7 @@
 #  鸿蒙沙箱浏览器 - SandboxFinder
 
-<div align="center">      
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
-![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)    
-
-</div>
-
+![Version](https://img.shields.io/badge/version-1.0.0-blue)  ![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)    
 
 一个专为 HarmonyOS 应用开发者设计的**沙箱文件浏览器**，通过内置 HTTP 服务器提供 Web 界面访问应用沙箱目录。  
 
@@ -53,16 +48,17 @@ ohpm install @cxy/sandboxfinder
   ```json5
 // oh-package.json5
 {
-  "dependencies": {
-    "@cxy/sandboxfinder": "^1.0.0"
-  }
+    "dependencies": {
+      "@cxy/sandboxfinder": "^1.0.0"
+    }
 }
   ```
 2. **导入并启动**
 ```typescript
 // EntryAbility.ets
 
-import BuildProfile from 'BuildProfile'; //需手动编译一下你的工程
+// 导入BuildProfile，编译工程自动生成
+import BuildProfile from 'BuildProfile'; 
 
 onWindowStageCreate(windowStage: window.WindowStage): void {
   windowStage.loadContent('pages/Index', (err) => {
@@ -84,17 +80,18 @@ onWindowStageCreate(windowStage: window.WindowStage): void {
 }
 ```
 
-3. 确保鸿蒙设备和电脑在同一网络， 获取访问地址:  查看打印log -> 搜索 '--'。 
-或者直接查看设备IP：设置 -> WLAN -> 已连接的WIFI详情 -> IP地址。
+3. 确保鸿蒙设备和电脑在同一网络， 获取访问地址:  查看打印log -> 搜索 '--'。   
 
-   ```sh
-   ------------------------------------------------------------
+   或者直接查看设备IP：设置 -> WLAN -> 已连接的WIFI详情 -> IP地址。
+
+  ```sh
+   ----------------------------------------------------------
    
-   										沙箱浏览器启动成功                          
+   沙箱浏览器启动成功
+   请浏览器访问: http://192.168.2.38:7777
    
-                                                                                                    请浏览器访问: http://192.168.2.38:7777              
-                                                                                          ------------------------------------------------------------
-   ```
+   ----------------------------------------------------------
+  ```
 
 4. 浏览器直接访问： http://192.168.2.38:7777  (换成你的IP)
 
@@ -108,7 +105,9 @@ onWindowStageCreate(windowStage: window.WindowStage): void {
 > hdc list targets   # 输出: 127.0.0.1:5555
 
 # 转发端口 fport tcp:<localPort> tcp:<serverPort>
-hdc -t 127.0.0.1:5555 fport tcp:7777 tcp:7777   # 输出: Forwardport result:OK 表示成功
+hdc -t 127.0.0.1:5555 fport tcp:7777 tcp:7777   
+
+# 输出: Forwardport result:OK 表示成功
 ```
 
 转发成功后，访问： http://127.0.0.1:7777  , 如果无法访问，关闭网络代理工具试试看。
