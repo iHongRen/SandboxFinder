@@ -1,7 +1,6 @@
 #  鸿蒙沙箱浏览器 - SandboxFinder
 
 <div align="center">      
-
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)    
 
@@ -103,10 +102,10 @@ onWindowStageCreate(windowStage: window.WindowStage): void {
 > hdc list targets   # 输出: 127.0.0.1:5555
 
 # 转发端口 fport tcp:<localPort> tcp:<serverPort>
-hdc -t 127.0.0.1:5555 fport tcp:7777 tcp:7777   # 输出: Forwardport result:OK
+hdc -t 127.0.0.1:5555 fport tcp:7777 tcp:7777   # 输出: Forwardport result:OK 表示成功
 ```
 
-转发成功后，访问： http://127.0.0.1:7777 
+转发成功后，访问： http://127.0.0.1:7777  , 如果无法访问，关闭网络代理工具试试看。
 
 
 
