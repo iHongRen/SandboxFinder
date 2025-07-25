@@ -1,6 +1,7 @@
 #  鸿蒙沙箱浏览器 - SandboxFinder
 
 <div align="center">      
+
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)    
 
@@ -42,16 +43,21 @@
 
 #### 集成到项目
 
-1. **添加依赖**
-```json5
+1. **安装**
+
+```sh
+ohpm install @cxy/sandboxfinder
+```
+
+或 **添加依赖**，然后同步
+  ```json5
 // oh-package.json5
 {
   "dependencies": {
     "@cxy/sandboxfinder": "^1.0.0"
   }
 }
-```
-
+  ```
 2. **导入并启动**
 ```typescript
 // EntryAbility.ets
