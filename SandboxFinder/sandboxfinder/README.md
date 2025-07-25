@@ -1,6 +1,7 @@
 #  鸿蒙沙箱浏览器 - SandboxFinder
 
-<div align="center">    
+<div align="center">      
+
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)    
 
@@ -78,7 +79,8 @@ onWindowStageCreate(windowStage: window.WindowStage): void {
 }
 ```
 
-3. 确保鸿蒙设备和电脑在同一网络， 获取访问地址:  查看打印log -> 搜索 '--'。 或者直接查看设备IP
+3. 确保鸿蒙设备和电脑在同一网络， 获取访问地址:  查看打印log -> 搜索 '--'。 
+或者直接查看设备IP：设置 -> WLAN -> 已连接的WIFI详情 -> IP地址。
 
    ```sh
    ------------------------------------------------------------
@@ -145,13 +147,13 @@ import('@cxy/sandboxfinder').then(async (ns: ESObject) => {
 
 # 作者
 
- [@仙银](https://github.com/iHongRen) 
-
-其他鸿蒙相关作品：
+ [@仙银](https://github.com/iHongRen) 其他鸿蒙相关开源作品，欢迎使用和 🌟star ：
 
 1、[hpack](https://github.com/iHongRen/hpack) - 鸿蒙内部测试分发，一键脚本打包工具
 
-2、[Open-in-DevEco-Studio](https://github.com/iHongRen/Open-in-DevEco-Studio)  macOS 直接在 Finder 工具栏上，使用 DevEco-Studio 打开鸿蒙工程。
+2、[Open-in-DevEco-Studio](https://github.com/iHongRen/Open-in-DevEco-Studio)  - macOS 直接在 Finder 工具栏上，使用 DevEco-Studio 打开鸿蒙工程。
+
+3、[cxy-theme](https://github.com/iHongRen/cxy-theme) - DevEco-Studio 绿色背景主题
 
 
 
