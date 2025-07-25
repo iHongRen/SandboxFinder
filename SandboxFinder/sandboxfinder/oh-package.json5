@@ -5,6 +5,7 @@
   "main": "Index.ets",
   "author": "@仙银",
   "homepage": "https://github.com/iHongRen",
+  "repository": "https://github.com/iHongRen/SandboxFinder",
   "license": "Apache-2.0",
   "keywords": [
     "sandbox",
