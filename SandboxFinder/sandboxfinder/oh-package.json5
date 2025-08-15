@@ -11,13 +11,13 @@
     "sandbox",
     "sandboxfinder",
     "浏览器",
-    "预览器",
+    "服务器",
     "沙箱",
     "沙盒",
     "文件查看",
     "文件",
     "file",
-    "目录"
+    "server"
   ],
   "dependencies": {}
 }
