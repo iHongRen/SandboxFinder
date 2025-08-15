@@ -1,6 +1,6 @@
 {
   "name": "@cxy/sandboxfinder",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "鸿蒙沙箱文件浏览器，开发必备",
   "main": "Index.ets",
   "author": "@仙银",
