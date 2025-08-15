@@ -1,8 +1,8 @@
 # 鸿蒙沙箱浏览器 - [SandboxFinder](https://github.com/iHongRen/SandboxFinder)
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)  ![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)
+![Version](https://img.shields.io/badge/version-1.0.1-blue)  ![License](https://img.shields.io/badge/License-Apache%202.0-green.svg) ![GitHub Stars](https://img.shields.io/github/stars/iHongRen/SandboxFinder.svg?style=social)
 
-一个专为 HarmonyOS 应用开发者设计的[**沙箱文件浏览器**](https://github.com/iHongRen/harmony-udid-tool)，通过内置 HTTP 服务器提供 Web 界面访问应用沙箱目录。
+快速访问鸿蒙应用沙箱目录，支持沙箱文件预览、下载、上传、删除、搜索。
 
 ![view](https://7up.pics/images/2025/07/24/view.png)
 
@@ -47,7 +47,7 @@ ohpm install @cxy/sandboxfinder
 // oh-package.json5
 {
   "dependencies": {
-    "@cxy/sandboxfinder": "^1.0.0"
+    "@cxy/sandboxfinder": "^1.0.1"
   }
 }
   ```
