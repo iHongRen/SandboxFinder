@@ -2,8 +2,8 @@
   "app": {
     "bundleName": "com.cxy.sandboxfinder",
     "vendor": "example",
-    "versionCode": 1000001,
-    "versionName": "1.0.1",
+    "versionCode": 1000000,
+    "versionName": "1.0.0",
     "icon": "$media:layered_image",
     "label": "$string:app_name"
   }
