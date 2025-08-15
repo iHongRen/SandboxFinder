@@ -5,9 +5,8 @@
  * @description :  文件处理
  */
 
-import { fileIo, statfs } from '@kit.CoreFileKit'
+import { fileIo } from '@kit.CoreFileKit'
 import { FileItem } from '../models/FileItem'
-import { Utils } from '../utils/Utils'
 import { bundleManager } from "@kit.AbilityKit";
 
 class SandboxDir {

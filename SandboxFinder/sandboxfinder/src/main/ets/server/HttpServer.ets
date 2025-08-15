@@ -49,7 +49,6 @@ export class HttpServer {
       // 获取实际的端口和地址
       await this.tcpServer.getLocalAddress();
       this.serverAddress = this.getLocalIP()
-      this.printPrettyStartupMessage(this.serverAddress, port)
       return {
         address: this.serverAddress,
         port: port
@@ -75,6 +74,8 @@ export class HttpServer {
       } else {
         resolve()
       }
+
+
       console.log('服务器已停止');
     })
   }
@@ -191,26 +192,5 @@ export class HttpServer {
     const ip =
       (ipAddress >>> 24) + "." + (ipAddress >> 16 & 0xFF) + "." + (ipAddress >> 8 & 0xFF) + "." + (ipAddress & 0xFF);
     return ip
-  }
-
-  printPrettyStartupMessage(serverAddress: string, port: number) {
-    const boxWidth = 60;
-    const title = "沙箱浏览器启动成功";
-    const message = `请浏览器访问: http://${serverAddress}:${port}`;
-
-    const horizontalLine = `-${"-".repeat(boxWidth - 2)}-`;
-    const emptyLine = ` ${" ".repeat(boxWidth - 4)} `;
-    const titleLine = ` ${title.padStart(Math.floor((boxWidth + title.length) / 2) - 1).padEnd(boxWidth - 2)} `;
-    const messageLine = ` ${message.padStart(Math.floor((boxWidth + message.length) / 2) - 1).padEnd(boxWidth - 2)} `;
-
-    console.log(`
-${horizontalLine}
-${emptyLine}
-${titleLine}
-${emptyLine}
-${messageLine}
-${emptyLine}
-${horizontalLine}
-`);
   }
 }

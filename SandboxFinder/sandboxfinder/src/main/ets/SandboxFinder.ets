@@ -56,6 +56,7 @@ export class SandboxFinder {
   private async startServer(): Promise<ServerInfo> {
     const serverInfo = await this.server.startServer(this.port);
     if (serverInfo.address) {
+      this.printServerInfo(serverInfo)
       // 创建请求处理器
       this.requestHandler = new RequestHandler(this.fileManager, serverInfo);
     }
@@ -65,5 +66,15 @@ export class SandboxFinder {
   // 停止服务器
   private async stopServer(): Promise<void> {
     await this.server.stopServer();
+  }
+
+
+  printServerInfo(serverInfo: ServerInfo) {
+    console.log(`
+    -----------------------------------------------
+    沙箱浏览器启动成功
+    请浏览器访问: http://${serverInfo.address}:${serverInfo.port}
+    -----------------------------------------------
+    `)
   }
 }

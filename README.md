@@ -159,5 +159,7 @@ import('@cxy/sandboxfinder').then(async (ns: ESObject) => {
 
 3、[cxy-theme](https://github.com/iHongRen/cxy-theme) - DevEco-Studio 绿色背景主题
 
+4、[harmony-udid-tool](https://github.com/iHongRen/harmony-udid-tool) - 桌面端跨平台工具，用与于获取设备 UDID 
+
 
 
