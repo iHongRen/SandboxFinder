@@ -6,7 +6,6 @@
  */
 
 
-import fs from '@ohos.file.fs';
 import { buffer, util } from '@kit.ArkTS';
 import { ApiHandler } from './ApiHandler';
 import { ServerInfo } from '../models/ServerInfo';
