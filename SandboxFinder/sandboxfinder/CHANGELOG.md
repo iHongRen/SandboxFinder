@@ -1,5 +1,11 @@
 # 鸿蒙沙箱浏览器 - [SandboxFinder](https://github.com/iHongRen/SandboxFinder)
 
+[v1.0.2](https://github.com/iHongRen/SandboxFinder/releases/tag/v1.0.2)
+
+优化文档
+
+
+
 [v1.0.1](https://github.com/iHongRen/SandboxFinder/releases/tag/v1.0.1)
 
 优化打印  

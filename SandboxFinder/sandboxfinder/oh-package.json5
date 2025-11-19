@@ -1,7 +1,7 @@
 {
   "name": "@cxy/sandboxfinder",
-  "version": "1.0.1",
-  "description": "鸿蒙沙箱文件浏览器，开发必备",
+  "version": "1.0.2",
+  "description": "鸿蒙沙箱文件浏览器，快速访问鸿蒙应用沙箱目录，支持沙箱文件预览、下载、上传、删除、搜索。",
   "main": "Index.ets",
   "author": "@仙银",
   "homepage": "https://github.com/iHongRen",
@@ -10,14 +10,14 @@
   "keywords": [
     "sandbox",
     "sandboxfinder",
+    "file",
     "浏览器",
-    "服务器",
+    "设备",
     "沙箱",
     "沙盒",
     "文件查看",
     "文件",
-    "file",
-    "server"
+    "仙银"
   ],
   "dependencies": {}
 }
