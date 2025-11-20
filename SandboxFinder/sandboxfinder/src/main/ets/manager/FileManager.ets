@@ -117,41 +117,51 @@ export class FileManager {
 
   // 分块追加写入大文件，支持 isFirst 控制覆盖/追加
   public async appendFileStream(filePath: string, data: Uint8Array, isFirst: boolean = false): Promise<void> {
-    const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
-    await this.ensureDirectoryExists(dirPath);
-    const openMode = isFirst
-      ? fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC
-      : fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.APPEND;
-    const file = await fileIo.open(filePath, openMode);
-    const CHUNK_SIZE = 2 * 1024 * 1024;
-    let offset = 0;
-    while (offset < data.length) {
-      const chunk = data.slice(offset, offset + CHUNK_SIZE);
-      await fileIo.write(file.fd, chunk.buffer, { offset: 0, length: chunk.length });
-      offset += CHUNK_SIZE;
+    try {
+      const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
+      await this.ensureDirectoryExists(dirPath);
+      const openMode = isFirst
+        ? fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC
+        : fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.APPEND;
+      const file = await fileIo.open(filePath, openMode);
+      const CHUNK_SIZE = 2 * 1024 * 1024;
+      let offset = 0;
+      while (offset < data.length) {
+        const chunk = data.slice(offset, offset + CHUNK_SIZE);
+        await fileIo.write(file.fd, chunk.buffer, { offset: 0, length: chunk.length });
+        offset += CHUNK_SIZE;
+      }
+      await fileIo.close(file.fd);
+    } catch (e) {
     }
-    await fileIo.close(file.fd);
   }
 
   // 流式写入大文件，data为Uint8Array
   public async writeFileStream(filePath: string, data: Uint8Array): Promise<void> {
-    const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
-    await this.ensureDirectoryExists(dirPath);
-    const file =
-      await fileIo.open(filePath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
-    const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB分块
-    let offset = 0;
-    while (offset < data.length) {
-      const chunk = data.slice(offset, offset + CHUNK_SIZE);
-      await fileIo.write(file.fd, chunk.buffer, { offset: 0, length: chunk.length });
-      offset += CHUNK_SIZE;
+    try {
+      const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
+      await this.ensureDirectoryExists(dirPath);
+      const file =
+        await fileIo.open(filePath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
+      const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB分块
+      let offset = 0;
+      while (offset < data.length) {
+        const chunk = data.slice(offset, offset + CHUNK_SIZE);
+        await fileIo.write(file.fd, chunk.buffer, { offset: 0, length: chunk.length });
+        offset += CHUNK_SIZE;
+      }
+      await fileIo.close(file.fd);
+    } catch (e) {
     }
-    await fileIo.close(file.fd);
   }
 
   // 检查文件是否存在
   public async checkFileExists(path: string): Promise<boolean> {
-    return await fileIo.access(path)
+    try {
+      return await fileIo.access(path)
+    } catch (e) {
+      return false
+    }
   }
 
   // 创建沙箱Finder
@@ -166,12 +176,16 @@ export class FileManager {
 
   // 拷贝到沙箱服务器目录
   private async copyToServerPath(fileName: string) {
-    const path = this.serverPath + '/' + fileName
-    const rawPath = this.serverDir + '/' + fileName
-    const buf = await this.context.resourceManager.getRawFileContent(rawPath)
-    const outFile = await fileIo.open(path, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC)
-    await fileIo.write(outFile.fd, buf.buffer)
-    await fileIo.close(outFile.fd)
+    try {
+      const path = this.serverPath + '/' + fileName
+      const rawPath = this.serverDir + '/' + fileName
+      const buf = await this.context.resourceManager.getRawFileContent(rawPath)
+      const outFile =
+        await fileIo.open(path, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC)
+      await fileIo.write(outFile.fd, buf.buffer)
+      await fileIo.close(outFile.fd)
+    } catch (e) {
+    }
   }
 
   async mkdir(path: string, name: string): Promise<boolean> {
@@ -219,124 +233,153 @@ export class FileManager {
 
   // 列出目录内容（ls）
   public async listDir(dirPath: string): Promise<FileItem[]> {
-    if (dirPath === '' || dirPath === SandboxDir.Data) {
-      return this.getDefaultItems(['storage'], SandboxDir.Data)
-    }
+    try {
+      if (dirPath === '' || dirPath === SandboxDir.Data) {
+        return this.getDefaultItems(['storage'], SandboxDir.Data)
+      }
 
-    if (dirPath === SandboxDir.Storage) {
-      return this.getDefaultItems(['el1', 'el2'], dirPath)
-    }
+      if (dirPath === SandboxDir.Storage) {
+        return this.getDefaultItems(['el1', 'el2'], dirPath)
+      }
 
-    if (dirPath === SandboxDir.El1 || dirPath === SandboxDir.El2) {
-      return this.getDefaultItems(['base', 'database'], dirPath)
-    }
+      if (dirPath === SandboxDir.El1 || dirPath === SandboxDir.El2) {
+        return this.getDefaultItems(['base', 'database'], dirPath)
+      }
 
-    if (dirPath === '/') {
-      return this.contextDirs()
-    }
+      if (dirPath === '/') {
+        return this.contextDirs()
+      }
 
-    let filenames = await fileIo.listFile(dirPath);
-    if (dirPath === this.contextFilesDir) {
-      filenames = filenames.filter(e => e !== this.serverDir)
-    }
-    const fileInfos = await Promise.all(filenames.map(async filename => {
-      const filePath = dirPath + '/' + filename;
-      const stat = await fileIo.stat(filePath);
-      const item = new FileItem();
-      item.name = filename;
-      item.path = filePath;
-      item.modified = stat.mtime
-      item.isFolder = stat.isDirectory();
-      item.size = stat.size
-      item.ext = item.isFolder ? '' : this.getExtension(filePath)
-      return item;
-    }));
+      let filenames = await fileIo.listFile(dirPath);
+      if (dirPath === this.contextFilesDir) {
+        filenames = filenames.filter(e => e !== this.serverDir)
+      }
+      const fileInfos = await Promise.all(filenames.map(async filename => {
+        const filePath = dirPath + '/' + filename;
+        const stat = await fileIo.stat(filePath);
+        const item = new FileItem();
+        item.name = filename;
+        item.path = filePath;
+        item.modified = stat.mtime
+        item.isFolder = stat.isDirectory();
+        item.size = stat.size
+        item.ext = item.isFolder ? '' : this.getExtension(filePath)
+        return item;
+      }));
 
-    return fileInfos;
+      return fileInfos;
+    } catch (e) {
+      return []
+    }
   }
 
   // 新建空文件（touch）
   public async touch(filePath: string): Promise<void> {
-    const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
-    await this.ensureDirectoryExists(dirPath);
-    const file =
-      await fileIo.open(filePath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
-    await fileIo.close(file.fd);
+    try {
+      const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
+      await this.ensureDirectoryExists(dirPath);
+      const file =
+        await fileIo.open(filePath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
+      await fileIo.close(file.fd);
+    } catch (e) {
+    }
   }
 
   // 删除文件或目录（rm）
   public async remove(path: string): Promise<void> {
-    const stat = await fileIo.stat(path);
-    if (stat.isDirectory()) {
-      await fileIo.rmdir(path);
-    } else {
-      await fileIo.unlink(path);
+    try {
+      const stat = await fileIo.stat(path);
+      if (stat.isDirectory()) {
+        await fileIo.rmdir(path);
+      } else {
+        await fileIo.unlink(path);
+      }
+    } catch (e) {
     }
   }
 
   // 重命名/移动（mv）
   public async move(src: string, dest: string): Promise<void> {
-    await fileIo.rename(src, dest);
+    try {
+      await fileIo.rename(src, dest);
+    } catch (e) {
+    }
   }
 
   // 复制文件或目录（cp）
   public async copy(src: string, dest: string): Promise<void> {
-    const stat = await fileIo.stat(src);
-    if (stat.isDirectory()) {
-      await this.copyDirectory(src, dest);
-    } else {
-      await this.copyFile(src, dest);
+    try {
+      const stat = await fileIo.stat(src);
+      if (stat.isDirectory()) {
+        await this.copyDirectory(src, dest);
+      } else {
+        await this.copyFile(src, dest);
+      }
+    } catch (e) {
     }
   }
 
   private async copyFile(src: string, dest: string): Promise<void> {
-    const srcFile = await fileIo.open(src, fileIo.OpenMode.READ_ONLY);
-    const stat = await fileIo.stat(src);
-    const buf = new ArrayBuffer(stat.size);
-    await fileIo.read(srcFile.fd, buf);
-    await fileIo.close(srcFile.fd);
-    const destFile =
-      await fileIo.open(dest, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
-    await fileIo.write(destFile.fd, buf);
-    await fileIo.close(destFile.fd);
+    try {
+      const srcFile = await fileIo.open(src, fileIo.OpenMode.READ_ONLY);
+      const stat = await fileIo.stat(src);
+      const buf = new ArrayBuffer(stat.size);
+      await fileIo.read(srcFile.fd, buf);
+      await fileIo.close(srcFile.fd);
+      const destFile =
+        await fileIo.open(dest, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
+      await fileIo.write(destFile.fd, buf);
+      await fileIo.close(destFile.fd);
+    } catch (e) {
+    }
   }
 
   private async copyDirectory(src: string, dest: string): Promise<void> {
-    await this.ensureDirectoryExists(dest);
-    const files = await fileIo.listFile(src);
-    for (const file of files) {
-      if (file === '.' || file === '..') {
-        continue;
+    try {
+      await this.ensureDirectoryExists(dest);
+      const files = await fileIo.listFile(src);
+      for (const file of files) {
+        if (file === '.' || file === '..') {
+          continue;
+        }
+        const srcPath = src + '/' + file;
+        const destPath = dest + '/' + file;
+        const stat = await fileIo.stat(srcPath);
+        if (stat.isDirectory()) {
+          await this.copyDirectory(srcPath, destPath);
+        } else {
+          await this.copyFile(srcPath, destPath);
+        }
       }
-      const srcPath = src + '/' + file;
-      const destPath = dest + '/' + file;
-      const stat = await fileIo.stat(srcPath);
-      if (stat.isDirectory()) {
-        await this.copyDirectory(srcPath, destPath);
-      } else {
-        await this.copyFile(srcPath, destPath);
-      }
+    } catch (e) {
     }
   }
 
   // 写入/覆盖文件内容（write）
   public async writeFile(filePath: string, content: ArrayBuffer): Promise<void> {
-    const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
-    await this.ensureDirectoryExists(dirPath);
-    const file =
-      await fileIo.open(filePath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
-    await fileIo.write(file.fd, content);
-    await fileIo.close(file.fd);
+    try {
+      const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
+      await this.ensureDirectoryExists(dirPath);
+      const file =
+        await fileIo.open(filePath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
+      await fileIo.write(file.fd, content);
+      await fileIo.close(file.fd);
+    } catch (e) {
+    }
   }
 
   // 读取文件
   public async readFile(filePath: string): Promise<ArrayBuffer> {
-    const file = await fileIo.open(filePath, fileIo.OpenMode.READ_ONLY);
-    const stat = await fileIo.stat(filePath);
-    const buffer = new ArrayBuffer(stat.size);
-    await fileIo.read(file.fd, buffer);
-    await fileIo.close(file.fd);
-    return buffer
+    try {
+      const file = await fileIo.open(filePath, fileIo.OpenMode.READ_ONLY);
+      const stat = await fileIo.stat(filePath);
+      const buffer = new ArrayBuffer(stat.size);
+      await fileIo.read(file.fd, buffer);
+      await fileIo.close(file.fd);
+      return buffer
+    } catch (e) {
+      return new ArrayBuffer(0)
+    }
   }
 
   canMkdir(path: string): boolean {
@@ -483,65 +526,69 @@ export class FileManager {
   // 判断文件是否为图片
   public async isImageFile(filePath: string): Promise<boolean> {
     const ext = this.getExtension(filePath)
-    if (!ext) {
-      const file = await fileIo.open(filePath, fileIo.OpenMode.READ_ONLY);
-      const header = new Uint8Array(8);
-      await fileIo.read(file.fd, header.buffer, { offset: 0, length: 8 });
-      await fileIo.close(file.fd);
+    try {
+      if (!ext) {
 
-      // PNG
-      if (header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4E && header[3] === 0x47) {
-        return true;
+        const file = await fileIo.open(filePath, fileIo.OpenMode.READ_ONLY);
+        const header = new Uint8Array(8);
+        await fileIo.read(file.fd, header.buffer, { offset: 0, length: 8 });
+        await fileIo.close(file.fd);
+
+        // PNG
+        if (header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4E && header[3] === 0x47) {
+          return true;
+        }
+        // JPEG
+        if (header[0] === 0xFF && header[1] === 0xD8 && header[2] === 0xFF) {
+          return true;
+        }
+        // GIF
+        if (header[0] === 0x47 && header[1] === 0x49 && header[2] === 0x46) {
+          return true;
+        }
+        // BMP
+        if (header[0] === 0x42 && header[1] === 0x4D) {
+          return true;
+        }
+        // WebP
+        if (header[0] === 0x52 && header[1] === 0x49 && header[2] === 0x46 && header[3] === 0x46) {
+          return true;
+        }
+        // ICO
+        if (header[0] === 0x00 && header[1] === 0x00 && header[2] === 0x01 && header[3] === 0x00) {
+          return true;
+        }
+        // TIFF
+        if (header[0] === 0x4D && header[1] === 0x4D && header[2] === 0x00 && header[3] === 0x2A) {
+          return true;
+        }
+        // PSD
+        if (header[0] === 0x38 && header[1] === 0x42 && header[2] === 0x50 && header[3] === 0x53) {
+          return true;
+        }
+        // AVIF
+        if (header[0] === 0x00 && header[1] === 0x00 && header[2] === 0x01 && header[3] === 0x66) {
+          return true;
+        }
+        // HEIF
+        if (header[0] === 0x4D && header[1] === 0x4D && header[2] === 0x00 && header[3] === 0x2A) {
+          return true;
+        }
+        // JPEG XR
+        if (header[0] === 0x78 && header[1] === 0x79 && header[2] === 0x7A && header[3] === 0x75) {
+          return true;
+        }
+        // TIFF
+        if (header[0] === 0x4D && header[1] === 0x4D && header[2] === 0x00 && header[3] === 0x2A) {
+          return true;
+        }
+        // svg
+        if (header[0] === 0x3C && header[1] === 0x73 && header[2] === 0x76 && header[3] === 0x67) {
+          return true;
+        }
+        return false
       }
-      // JPEG
-      if (header[0] === 0xFF && header[1] === 0xD8 && header[2] === 0xFF) {
-        return true;
-      }
-      // GIF
-      if (header[0] === 0x47 && header[1] === 0x49 && header[2] === 0x46) {
-        return true;
-      }
-      // BMP
-      if (header[0] === 0x42 && header[1] === 0x4D) {
-        return true;
-      }
-      // WebP
-      if (header[0] === 0x52 && header[1] === 0x49 && header[2] === 0x46 && header[3] === 0x46) {
-        return true;
-      }
-      // ICO
-      if (header[0] === 0x00 && header[1] === 0x00 && header[2] === 0x01 && header[3] === 0x00) {
-        return true;
-      }
-      // TIFF
-      if (header[0] === 0x4D && header[1] === 0x4D && header[2] === 0x00 && header[3] === 0x2A) {
-        return true;
-      }
-      // PSD
-      if (header[0] === 0x38 && header[1] === 0x42 && header[2] === 0x50 && header[3] === 0x53) {
-        return true;
-      }
-      // AVIF
-      if (header[0] === 0x00 && header[1] === 0x00 && header[2] === 0x01 && header[3] === 0x66) {
-        return true;
-      }
-      // HEIF
-      if (header[0] === 0x4D && header[1] === 0x4D && header[2] === 0x00 && header[3] === 0x2A) {
-        return true;
-      }
-      // JPEG XR
-      if (header[0] === 0x78 && header[1] === 0x79 && header[2] === 0x7A && header[3] === 0x75) {
-        return true;
-      }
-      // TIFF
-      if (header[0] === 0x4D && header[1] === 0x4D && header[2] === 0x00 && header[3] === 0x2A) {
-        return true;
-      }
-      // svg
-      if (header[0] === 0x3C && header[1] === 0x73 && header[2] === 0x76 && header[3] === 0x67) {
-        return true;
-      }
-      return false
+    } catch (e) {
     }
 
     const imageExtensions = [
@@ -550,13 +597,17 @@ export class FileManager {
     return imageExtensions.includes(ext);
   }
 
+
   async getAppInfo(): Promise<Record<string, Object>> {
     let name = ''
-    const labelId = this.bundleInfo.appInfo?.labelId
-    if (labelId) {
-      name = this.context.resourceManager.getStringSync(labelId)
-    } else {
-      name = this.context.resourceManager.getStringByNameSync('app_name')
+    try {
+      const labelId = this.bundleInfo.appInfo?.labelId
+      if (labelId) {
+        name = await this.context.resourceManager.getStringValue(labelId)
+      } else {
+        name = await this.context.resourceManager.getStringByName('app_name')
+      }
+    } catch (e) {
     }
     return {
       'versionCode': this.bundleInfo.versionCode,

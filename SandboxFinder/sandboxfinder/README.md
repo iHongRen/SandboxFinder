@@ -137,7 +137,7 @@ static async stop();
 ```ts
 // EntryAbility.ets  - onWindowStageCreate()
 import('@cxy/sandboxfinder').then(async (ns: ESObject) => {
-  // 绑定到端口 6666
+  // 绑定到端口 6666, 使用 this.context
   ns.SandboxFinder.run(6666, this.context).then((serverInfo: ESObject) => {
     console.log(JSON.stringify(serverInfo))
   })
