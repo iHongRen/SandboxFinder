@@ -41,7 +41,7 @@ export class HttpServer {
 
       // 绑定到动态端口
       const bindAddress: socket.NetAddress = {
-        address: '0.0.0.0',
+        address: this.getLocalIP(),
         port: port
       };
 

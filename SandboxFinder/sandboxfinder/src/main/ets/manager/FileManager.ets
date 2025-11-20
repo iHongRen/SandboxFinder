@@ -10,11 +10,10 @@ import { FileItem } from '../models/FileItem'
 import { bundleManager } from "@kit.AbilityKit";
 
 class SandboxDir {
-  static el1 = '/data/storage/el1'
-  static el2 = '/data/storage/el2'
-  static base = '/base'
-  static database = '/database'
-  static distributedfiles = '/distributedfiles'
+  static Data = '/' + 'data'
+  static Storage = '/' + ['data', 'storage'].join('/')
+  static El1 = '/' + ['data', 'storage', 'el1'].join('/')
+  static El2 = '/' + ['data', 'storage', 'el2'].join('/')
 }
 
 interface LRUCacheEntry {
@@ -196,7 +195,7 @@ export class FileManager {
   }
 
   public contextDirs(): FileItem[] {
-    const dataDir = this.contextFileItem('data', '/data')
+    const dataDir = this.contextFileItem('data', SandboxDir.Data)
     const filesDir = this.contextFileItem('filesDir', this.context.filesDir)
     const cacheDir = this.contextFileItem('cacheDir', this.context.cacheDir)
     const tempDir = this.contextFileItem('tempDir', this.context.tempDir)
@@ -220,15 +219,15 @@ export class FileManager {
 
   // 列出目录内容（ls）
   public async listDir(dirPath: string): Promise<FileItem[]> {
-    if (dirPath === '' || dirPath === '/data') {
-      return this.getDefaultItems(['storage'], '/data')
+    if (dirPath === '' || dirPath === SandboxDir.Data) {
+      return this.getDefaultItems(['storage'], SandboxDir.Data)
     }
 
-    if (dirPath === '/data/storage') {
+    if (dirPath === SandboxDir.Storage) {
       return this.getDefaultItems(['el1', 'el2'], dirPath)
     }
 
-    if (dirPath === '/data/storage/el1' || dirPath === '/data/storage/el2') {
+    if (dirPath === SandboxDir.El1 || dirPath === SandboxDir.El2) {
       return this.getDefaultItems(['base', 'database'], dirPath)
     }
 
@@ -349,11 +348,11 @@ export class FileManager {
       return false
     }
 
-    if (!path.startsWith(SandboxDir.el1) && !path.startsWith(SandboxDir.el2)) {
+    if (!path.startsWith(SandboxDir.El1) && !path.startsWith(SandboxDir.El2)) {
       return false
     }
 
-    if (path === SandboxDir.el1 || path === SandboxDir.el2) {
+    if (path === SandboxDir.El1 || path === SandboxDir.El2) {
       return false
     }
     return true
