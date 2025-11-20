@@ -17,12 +17,12 @@ export class SandboxFinder {
   private fileManager: FileManager
   private requestHandler?: RequestHandler
   private port: number
-  private context: Context
+  private context: common.UIAbilityContext
 
   /**
    * 运行服务
    * @param port  端口号，默认7777
-   * @param context UIAbilityContext, 默认 getContext()
+   * @param context UIAbilityContext
    * @returns ServerInfo =》 { address: string , port: number }
    */
   static async run(port: number = 7777,
@@ -38,7 +38,7 @@ export class SandboxFinder {
     await SandboxFinder.instance.stopServer()
   }
 
-  private constructor(context: Context, port: number) {
+  private constructor(context: common.UIAbilityContext, port: number) {
     this.context = context
     this.port = port
     this.fileManager = new FileManager(this.context)
@@ -71,10 +71,10 @@ export class SandboxFinder {
 
   printServerInfo(serverInfo: ServerInfo) {
     console.log(`
-    -----------------------------------------------
+    ${'-'.repeat(40)}
     沙箱浏览器启动成功
     请浏览器访问: http://${serverInfo.address}:${serverInfo.port}
-    -----------------------------------------------
+    ${'-'.repeat(40)}
     `)
   }
 }
