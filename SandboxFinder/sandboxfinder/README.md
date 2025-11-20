@@ -1,6 +1,6 @@
 # 鸿蒙沙箱浏览器 - [SandboxFinder](https://github.com/iHongRen/SandboxFinder)
 
-![Version](https://img.shields.io/badge/version-1.0.2-blue)  ![License](https://img.shields.io/badge/License-Apache%202.0-green.svg) ![GitHub Stars](https://img.shields.io/github/stars/iHongRen/SandboxFinder.svg?style=social)
+![Version](https://img.shields.io/badge/version-1.0.3-blue)  ![License](https://img.shields.io/badge/License-Apache%202.0-green.svg) ![GitHub Stars](https://img.shields.io/github/stars/iHongRen/SandboxFinder.svg?style=social)
 
 快速访问鸿蒙应用沙箱目录，支持沙箱文件预览、下载、上传、删除、搜索。
 
@@ -47,7 +47,7 @@ ohpm install @cxy/sandboxfinder
 // oh-package.json5
 {
   "dependencies": {
-    "@cxy/sandboxfinder": "^1.0.2"
+    "@cxy/sandboxfinder": "^1.0.3"
   }
 }
   ```
