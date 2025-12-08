@@ -1,6 +1,6 @@
 # 鸿蒙沙箱浏览器 - [SandboxFinder](https://github.com/iHongRen/SandboxFinder)
 
-![Version](https://img.shields.io/badge/version-1.0.2-blue)  ![License](https://img.shields.io/badge/License-Apache%202.0-green.svg) ![GitHub Stars](https://img.shields.io/github/stars/iHongRen/SandboxFinder.svg?style=social)
+![Version](https://img.shields.io/badge/version-1.0.4-blue)  ![License](https://img.shields.io/badge/License-Apache%202.0-green.svg) ![GitHub Stars](https://img.shields.io/github/stars/iHongRen/SandboxFinder.svg?style=social)
 
 快速访问鸿蒙应用沙箱目录，支持沙箱文件预览、下载、上传、删除、搜索。
 
@@ -8,14 +8,14 @@
 
 ## 核心特性
 
-### 🗂️ 沙箱文件系统
+### 沙箱文件系统
 
 - **内置 HTTP 服务器** - 基于 `TCP Socket` 实现的轻量级 HTTP 服务器
 - **多设备** - 支持模拟器和真机
 - **文件类型识别** - 智能识别文本、图片、视频、音频、SQLite 数据库等文件类型
 - **自定义端口** - 默认端口`7777`
 
-### 🌐 Web 界面访问
+### Web 界面访问
 
 - **响应式 Web UI** - 使用 Vue 3 + Tailwind CSS 构建的现代化界面
 - **快速访问** - 提供便捷的沙箱目录访问（`filesDir`、`cacheDir`、`tempDir`、`databaseDir` 等）
@@ -23,13 +23,31 @@
 - **排序** - 支持按名称、大小、时间排序
 - **搜索** - 实时关键字搜索
 
-### 📁 文件操作功能
+### 文件操作功能
 
 - **基础文件操作** - 创建、删除、重命名
 - **文件上传** - 支持大文件分块、批量、拖放上传
 - **下载** - 直链下载
 
 ## 快速开始
+
+#### 权限申请
+
+在项目入口模块的 `module.json5` 中申请网络权限:
+
+```json
+// modelu.json5
+"requestPermissions": [
+  {
+    "name": "ohos.permission.INTERNET"
+  },
+  {
+    "name": "ohos.permission.GET_NETWORK_INFO"
+  }
+]
+```
+
+
 
 #### 集成到项目
 
@@ -45,7 +63,7 @@ ohpm install @cxy/sandboxfinder
 // oh-package.json5
 {
   "dependencies": {
-    "@cxy/sandboxfinder": "^1.0.2"
+    "@cxy/sandboxfinder": "^1.0.4"
   }
 }
 ```
@@ -118,10 +136,10 @@ hdc -t 127.0.0.1:5555 fport tcp:7777 tcp:7777
  * 运行服务
  * @param port  端口号，默认7777
  * @param context UIAbilityContext, 默认 getContext()
- * @returns ServerInfo =》 { address: string , port: number }
+ * @returns socket.NetAddress =》 { address: string , port: number }
  */
 static async run(port: number = 7777,
-  context: common.UIAbilityContext = getContext() as common.UIAbilityContext): Promise<ServerInfo>;
+  context: common.UIAbilityContext = getContext() as common.UIAbilityContext): Promise<socket.NetAddress>;
     
     
  /**
@@ -130,7 +148,7 @@ static async run(port: number = 7777,
 static async stop();
 ```
 
-2、查看 ServerInfo
+2、查看 serverInfo
 
 ```ts
 // EntryAbility.ets  - onWindowStageCreate()

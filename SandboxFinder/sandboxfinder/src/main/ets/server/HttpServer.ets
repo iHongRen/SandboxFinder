@@ -6,16 +6,13 @@
  */
 
 
-import { wifiManager } from '@kit.ConnectivityKit';
-import { ServerInfo } from '../models/ServerInfo';
-import { socket } from '@kit.NetworkKit';
+import { connection, socket } from '@kit.NetworkKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { Utils } from '../utils/Utils';
 import { deviceInfo } from '@kit.BasicServicesKit';
 
 export class HttpServer {
   private tcpServer: socket.TCPSocketServer | null = null;
-  private serverAddress: string = '';
   private clientHandler: (requestData: Uint8Array) => Promise<string | ArrayBuffer>;
   // 定义存放客户端连接的数组
   private clients: socket.TCPSocketConnection[] = [];
@@ -25,7 +22,7 @@ export class HttpServer {
   }
 
   // 启动服务器
-  public async startServer(port: number): Promise<ServerInfo> {
+  public async startServer(port: number): Promise<socket.NetAddress> {
     try {
       this.tcpServer = socket.constructTCPSocketServerInstance();
 
@@ -45,15 +42,10 @@ export class HttpServer {
         address: this.getLocalIP(),
         port: port
       };
-
       await this.tcpServer.listen(bindAddress);
       // 获取实际的端口和地址
-      await this.tcpServer.getLocalAddress();
-      this.serverAddress = this.getLocalIP()
-      return {
-        address: this.serverAddress,
-        port: port
-      }
+      const info = await this.tcpServer.getLocalAddress();
+      return info
     } catch (error) {
       console.error('沙箱浏览器启动失败:', error);
       return {
@@ -185,11 +177,21 @@ export class HttpServer {
   }
 
 
-  // 获取本地IP地址
+  /**
+   * 获取本地IP地址
+   * @returns IP地址字符串
+   */
   private getLocalIP(): string {
-    const ipAddress = wifiManager.getIpInfo().ipAddress;
-    const ip =
-      (ipAddress >>> 24) + "." + (ipAddress >> 16 & 0xFF) + "." + (ipAddress >> 8 & 0xFF) + "." + (ipAddress & 0xFF);
-    return ip
+    try {
+      const netHandle = connection.getDefaultNetSync();
+      if (netHandle.netId === 0) {
+        // 当前没有已连接的网络时，获取的netHandler的netid为0
+        return '127.0.0.1';
+      }
+      const connectionproperties = connection.getConnectionPropertiesSync(netHandle);
+      return connectionproperties.linkAddresses[0].address.address;
+    } catch (e) {
+      return '127.0.0.1';
+    }
   }
 }

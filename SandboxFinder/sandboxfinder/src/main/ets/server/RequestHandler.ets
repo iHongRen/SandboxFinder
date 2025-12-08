@@ -8,15 +8,15 @@
 
 import { buffer, util } from '@kit.ArkTS';
 import { ApiHandler } from './ApiHandler';
-import { ServerInfo } from '../models/ServerInfo';
 import { FileManager } from '../manager/FileManager';
 import { Utils } from '../utils/Utils';
+import { socket } from '@kit.NetworkKit';
 
 export class RequestHandler {
   private fileManager: FileManager;
   private apiHandler: ApiHandler;
 
-  constructor(fileManager: FileManager, serverInfo: ServerInfo) {
+  constructor(fileManager: FileManager, serverInfo: socket.NetAddress) {
     this.fileManager = fileManager;
     this.apiHandler = new ApiHandler(fileManager, serverInfo);
   }

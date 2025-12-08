@@ -7,8 +7,8 @@
 import { FileManager } from "./manager/FileManager";
 import { HttpServer } from "./server/HttpServer";
 import { RequestHandler } from "./server/RequestHandler";
-import { common, Context } from "@kit.AbilityKit";
-import { ServerInfo } from "./models/ServerInfo";
+import { common } from "@kit.AbilityKit";
+import { socket } from "@kit.NetworkKit";
 
 
 export class SandboxFinder {
@@ -26,7 +26,7 @@ export class SandboxFinder {
    * @returns ServerInfo =》 { address: string , port: number }
    */
   static async run(port: number = 7777,
-    context: common.UIAbilityContext = getContext() as common.UIAbilityContext): Promise<ServerInfo> {
+    context: common.UIAbilityContext = getContext() as common.UIAbilityContext): Promise<socket.NetAddress> {
     SandboxFinder.instance = new SandboxFinder(context, port)
     return await SandboxFinder.instance.startServer()
   }
@@ -53,7 +53,7 @@ export class SandboxFinder {
   }
 
   // 启动服务器
-  private async startServer(): Promise<ServerInfo> {
+  private async startServer(): Promise<socket.NetAddress> {
     const serverInfo = await this.server.startServer(this.port);
     if (serverInfo.address) {
       this.printServerInfo(serverInfo)
@@ -69,7 +69,7 @@ export class SandboxFinder {
   }
 
 
-  printServerInfo(serverInfo: ServerInfo) {
+  printServerInfo(serverInfo: socket.NetAddress) {
     console.log(`
     ${'-'.repeat(40)}
     沙箱浏览器启动成功

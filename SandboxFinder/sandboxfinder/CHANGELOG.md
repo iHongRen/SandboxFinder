@@ -1,5 +1,28 @@
 # 鸿蒙沙箱浏览器 - [SandboxFinder](https://github.com/iHongRen/SandboxFinder)
 
+v1.0.4
+
+- 修改本机IP获取方式
+
+- 优化关闭服务器
+
+- 调整权限申请，改为用户自行在 module.json5 申请:
+
+  ```json
+  "requestPermissions": [
+      {
+        "name": "ohos.permission.INTERNET"
+      },
+      {
+        "name": "ohos.permission.GET_NETWORK_INFO"
+      }
+    ]
+  ```
+
+  
+
+
+
 [v1.0.3](https://github.com/iHongRen/SandboxFinder/releases/tag/v1.0.3)
 
 - 优化文档

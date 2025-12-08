@@ -5,20 +5,20 @@
  * @description : API请求处理
  */
 
-import { ServerInfo } from '../models/ServerInfo';
 import { FileManager } from '../manager/FileManager';
 import { Response } from './Response';
 import { Utils } from '../utils/Utils';
+import { socket } from '@kit.NetworkKit';
 
 export class ApiHandler {
   private fileManager: FileManager;
   private serverAddress: string;
   private serverPort: number;
 
-  constructor(fileManager: FileManager, serverInfo: ServerInfo) {
+  constructor(fileManager: FileManager, serverInfo: socket.NetAddress) {
     this.fileManager = fileManager;
     this.serverAddress = serverInfo.address;
-    this.serverPort = serverInfo.port;
+    this.serverPort = serverInfo.port || 0;
   }
 
   public async handleApiRequest(method: string, url: string,
