@@ -11,6 +11,7 @@ import { ServerInfo } from '../models/ServerInfo';
 import { socket } from '@kit.NetworkKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { Utils } from '../utils/Utils';
+import { deviceInfo } from '@kit.BasicServicesKit';
 
 export class HttpServer {
   private tcpServer: socket.TCPSocketServer | null = null;
@@ -64,20 +65,18 @@ export class HttpServer {
 
   // 停止服务器
   public async stopServer(): Promise<void> {
-    return new Promise((resolve) => {
-      if (this.tcpServer) {
-        this.tcpServer.off('connect', () => {
-          this.clients = []
-          this.tcpServer = null;
-          resolve()
-        })
-      } else {
-        resolve()
+    try {
+      this.clients.forEach(async (client, _) => {
+        await client.close();
+      })
+      this.clients = []
+      this.tcpServer?.off('connect')
+      if (deviceInfo.sdkApiVersion >= 20) {
+        await this.tcpServer?.close()
       }
-
-
-      console.log('服务器已停止');
-    })
+    } catch (e) {
+    }
+    this.tcpServer = null;
   }
 
   // 处理客户端连接
