@@ -29,4 +29,12 @@ export default class EntryAbility extends UIAbility {
 
     });
   }
+
+  onWindowStageDestroy(): void {
+    if (BuildProfile.DEBUG) {
+      import('@cxy/sandboxfinder').then(async (ns: ESObject) => {
+        ns.SandboxFinder.stop()
+      })
+    }
+  }
 }

@@ -181,17 +181,23 @@ export class HttpServer {
    * 获取本地IP地址
    * @returns IP地址字符串
    */
-  private getLocalIP(): string {
+  protected getLocalIP(): string {
+    const localIP = '127.0.0.1'
+    // 模拟器直接返回固定的
+    if (deviceInfo.productModel === 'emulator') {
+      return localIP;
+    }
+
     try {
       const netHandle = connection.getDefaultNetSync();
       if (netHandle.netId === 0) {
         // 当前没有已连接的网络时，获取的netHandler的netid为0
-        return '127.0.0.1';
+        return localIP;
       }
       const connectionproperties = connection.getConnectionPropertiesSync(netHandle);
       return connectionproperties.linkAddresses[0].address.address;
     } catch (e) {
-      return '127.0.0.1';
+      return localIP;
     }
   }
 }
