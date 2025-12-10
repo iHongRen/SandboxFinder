@@ -74,6 +74,10 @@ export class SandboxFinder {
     ${'-'.repeat(40)}
     沙箱浏览器启动成功
     请浏览器访问: http://${serverInfo.address}:${serverInfo.port}
+    模拟器使用需端口转换： hdc -t 127.0.0.1:5555 fport tcp:7777 tcp:7777
+
+    Github：https://github.com/iHongRen/SandboxFinder
+    三方库中心仓： https://ohpm.openharmony.cn/#/cn/detail/@cxy%2Fsandboxfinder
     ${'-'.repeat(40)}
     `)
   }
