@@ -1,1478 +1,1532 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>沙箱文件浏览器</title>
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>沙箱文件浏览器</title>
 
-        <script src="https://cdn.tailwindcss.com"></script>
-        <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-        <style>
-            .file-icon {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                width: 40px;
-                height: 40px;
-                border-radius: 8px;
-                color: white;
-            }
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+    <style>
+        .file-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            color: white;
+        }
 
-            .folder-icon {
-                background-color: #3b82f6;
-            }
+        .folder-icon {
+            background-color: #3b82f6;
+        }
 
-            .file-icon-text {
-                background-color: #10b981;
-            }
+        .file-icon-text {
+            background-color: #10b981;
+        }
 
-            .file-icon-image {
-                background-color: #ef4444;
-            }
+        .file-icon-image {
+            background-color: #ef4444;
+        }
 
-            .file-icon-video {
-                background-color: #8b5cf6;
-            }
+        .file-icon-video {
+            background-color: #8b5cf6;
+        }
 
-            .file-icon-sqlite {
-                background-color: #f59e0b;
-            }
+        .file-icon-sqlite {
+            background-color: #f59e0b;
+        }
 
-            .file-icon-other {
-                background-color: #64748b;
-            }
+        .file-icon-other {
+            background-color: #64748b;
+        }
 
-            .preview-container {
-                height: calc(100vh - 220px);
-            }
+        .preview-container {
+            height: calc(100vh - 220px);
+        }
 
-            .path-breadcrumb {
-                flex-wrap: wrap;
-            }
+        .path-breadcrumb {
+            flex-wrap: wrap;
+        }
 
+        .sidebar {
+            transition: all 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
             .sidebar {
-                transition: all 0.3s ease;
+                position: fixed;
+                left: -300px;
+                z-index: 50;
+                height: 100vh;
             }
 
-            @media (max-width: 768px) {
-                .sidebar {
-                    position: fixed;
-                    left: -300px;
-                    z-index: 50;
-                    height: 100vh;
-                }
-
-                .sidebar.active {
-                    left: 0;
-                }
+            .sidebar.active {
+                left: 0;
             }
+        }
 
-            .context-menu {
-                position: absolute;
-                z-index: 100;
-                min-width: 200px;
-            }
+        .context-menu {
+            position: absolute;
+            z-index: 100;
+            min-width: 200px;
+        }
 
-            /* 更快的旋转动画 */
-            .fa-fast-spin {
-                animation: fa-spin 1s linear infinite; /* 默认是 2s，改为 0.5s */
-            }
-        </style>
-    </head>
-    <body class="bg-gray-50">
-        <div id="app">
-            <!-- 全局上传进度/Loading -->
-            <div v-if="uploading" class="fixed inset-0 flex items-end justify-center pointer-events-none z-50">
-                <div class="mb-8 px-6 py-4 bg-white/90 rounded-lg shadow-xl flex flex-col items-center min-w-[240px] border border-blue-200 animate-fade-in">
-                    <div class="flex items-center space-x-2 mb-2">
-                        <i class="fas fa-spinner fa-spin text-blue-500 text-xl"></i>
-                        <span class="text-blue-700 font-semibold">正在上传文件...</span>
+        /* 更快的旋转动画 */
+        .fa-fast-spin {
+            animation: fa-spin 1s linear infinite; /* 默认是 2s，改为 0.5s */
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+<div id="app">
+    <!-- 全局上传进度/Loading -->
+    <div v-if="uploading" class="fixed inset-0 flex items-end justify-center pointer-events-none z-50">
+        <div class="mb-8 px-6 py-4 bg-white/90 rounded-lg shadow-xl flex flex-col items-center min-w-[240px] border border-blue-200 animate-fade-in">
+            <div class="flex items-center space-x-2 mb-2">
+                <i class="fas fa-spinner fa-spin text-blue-500 text-xl"></i>
+                <span class="text-blue-700 font-semibold">正在上传文件...</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div class="bg-blue-500 h-2 rounded-full transition-all duration-200"
+                     :style="{ width: uploadProgress + '%' }"></div>
+            </div>
+            <div class="text-xs text-gray-500 mt-1 w-full text-center">{{ uploadStatus }}</div>
+        </div>
+    </div>
+
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <div class="sidebar bg-white shadow-md w-64 p-2 border-r flex flex-col" :class="{ 'active': showSidebar }">
+            <div>
+                <div class="flex items-center justify-between p-2">
+                    <h1 @click="navigateToRoot()" class="text-xl font-bold text-gray-800 cursor-pointer">
+                        鸿蒙沙箱浏览器</h1>
+                    <button @click="showSidebar = false" class="md:hidden p-1 rounded hover:bg-gray-200">
+                        <i class="fas fa-times text-gray-600"></i>
+                    </button>
+                </div>
+
+                <div class="py-2 border-b mb-2">
+                    <div class="px-2 py-1 text-xs font-semibold text-gray-500 uppercase">快速访问</div>
+                    <div
+                            v-for="shortcut in shortcuts"
+                            :key="shortcut.path"
+                            @click="navigateToPath(shortcut.path)"
+                            :class="{ 'bg-blue-50 text-blue-600 font-semibold': currentPath === shortcut.path }"
+                            class="flex items-center px-2 py-1 rounded hover:bg-gray-100 cursor-pointer text-gray-600"
+                    >
+                        <i class="fas fa-folder mr-2 text-blue-500"></i>
+                        <span class="truncate">{{ shortcut.name }}</span>
                     </div>
-                    <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                        <div class="bg-blue-500 h-2 rounded-full transition-all duration-200" :style="{ width: uploadProgress + '%' }"></div>
+                </div>
+                <div class="py-2 border-b mb-2">
+                    <div class="px-2 py-1 text-xs font-semibold text-gray-500 uppercase">应用信息</div>
+                    <div class="text-xs text-gray-600 space-y-1 mt-2 px-2">
+                        <div class="flex items-center">
+                            <i class="fas fa-rocket mr-2 text-gray-500"></i>
+                            <span>{{ appInfo.name }}</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i class="fas fa-info-circle mr-2 text-gray-500"></i>
+                            <span>{{ appInfo.bundleName }}</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i class="fas fa-code-branch mr-2 text-gray-500"></i>
+                            <span>{{ appInfo.versionName }} ({{ appInfo.versionCode }})</span>
+                        </div>
                     </div>
-                    <div class="text-xs text-gray-500 mt-1 w-full text-center">{{ uploadStatus }}</div>
                 </div>
             </div>
 
-            <div class="flex h-screen overflow-hidden">
-                <!-- Sidebar -->
-                <div class="sidebar bg-white shadow-md w-64 p-2 border-r flex flex-col" :class="{ 'active': showSidebar }">
-                    <div>
-                        <div class="flex items-center justify-between p-2">
-                            <h1 @click="navigateToRoot()" class="text-xl font-bold text-gray-800 cursor-pointer">鸿蒙沙箱浏览器</h1>
-                            <button @click="showSidebar = false" class="md:hidden p-1 rounded hover:bg-gray-200">
-                                <i class="fas fa-times text-gray-600"></i>
-                            </button>
-                        </div>
-
-                        <div class="py-2 border-b mb-2">
-                            <div class="px-2 py-1 text-xs font-semibold text-gray-500 uppercase">快速访问</div>
-                            <div
-                                v-for="shortcut in shortcuts"
-                                :key="shortcut.path"
-                                @click="navigateToPath(shortcut.path)"
-                                :class="{ 'bg-blue-50 text-blue-600 font-semibold': currentPath === shortcut.path }"
-                                class="flex items-center px-2 py-1 rounded hover:bg-gray-100 cursor-pointer text-gray-600"
-                            >
-                                <i class="fas fa-folder mr-2 text-blue-500"></i>
-                                <span class="truncate">{{ shortcut.name }}</span>
-                            </div>
-                        </div>
-                        <div class="py-2 border-b mb-2">
-                            <div class="px-2 py-1 text-xs font-semibold text-gray-500 uppercase">应用信息</div>
-                            <div class="text-xs text-gray-600 space-y-1 mt-2 px-2">
-                                <div class="flex items-center">
-                                    <i class="fas fa-rocket mr-2 text-gray-500"></i>
-                                    <span>{{ appInfo.name }}</span>
-                                </div>
-                                <div class="flex items-center">
-                                    <i class="fas fa-info-circle mr-2 text-gray-500"></i>
-                                    <span>{{ appInfo.bundleName }}</span>
-                                </div>
-                                <div class="flex items-center">
-                                    <i class="fas fa-code-branch mr-2 text-gray-500"></i>
-                                    <span>{{ appInfo.versionName }} ({{ appInfo.versionCode }})</span>
-                                </div>
-                            </div>
-                        </div>
+            <div class="mt-auto p-2 border-t">
+                <div class="py-1 text-xs font-semibold text-gray-500 uppercase">关于</div>
+                <div class="text-xs text-gray-600 space-y-1 mt-2">
+                    <div class="flex items-center">
+                        <i class="fas fa-info-circle mr-2 text-gray-500"></i>
+                        <span>版本: 1.0.4</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-user mr-2 text-gray-500"></i>
+                        <a href="https://ihongren.github.io" target="_blank" class="hover:text-blue-500">作者: @仙银</a>
                     </div>
 
-                    <div class="mt-auto p-2 border-t">
-                        <div class="py-1 text-xs font-semibold text-gray-500 uppercase">关于</div>
-                        <div class="text-xs text-gray-600 space-y-1 mt-2">
-                            <div class="flex items-center">
-                                <i class="fas fa-info-circle mr-2 text-gray-500"></i>
-                                <span>版本: 1.0.3</span>
-                            </div>
-                            <div class="flex items-center">
-                                <i class="fas fa-user mr-2 text-gray-500"></i>
-                                <a href="https://ihongren.github.io" target="_blank" class="hover:text-blue-500">作者: @仙银</a>
-                            </div>
+                    <a class="flex items-center cursor-pointer" @click="showDonationPopup = true">
+                        <svg t="1753185700592" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
+                             p-id="38717" width="12" height="12">
+                            <path d="M512 512m-512 0a512 512 0 1 0 1024 0 512 512 0 1 0-1024 0Z" fill="#F75280"
+                                  p-id="38718"></path>
+                            <path
+                                    d="M406.826667 291.2a173.44 173.44 0 0 1 128 64 173.44 173.44 0 0 1 128-64 147.626667 147.626667 0 0 1 123.093333 59.733333 158.72 158.72 0 0 1 17.706667 139.733334 341.333333 341.333333 0 0 0-59.093334 0 97.28 97.28 0 0 0-2.773333-106.666667 94.506667 94.506667 0 0 0-78.08-36.48c-47.36 0-99.84 36.906667-128 98.133333-27.733333-60.373333-79.36-98.133333-128-98.133333a89.173333 89.173333 0 0 0-88.746667 57.6 115.413333 115.413333 0 0 1-45.653333-33.493333 148.053333 148.053333 0 0 1 133.546667-80.426667z"
+                                    fill="#FFFFFF"
+                                    p-id="38719"
+                            ></path>
+                            <path
+                                    d="M818.346667 515.626667c-44.586667 4.053333-55.466667 46.08-82.56 73.173333a469.333333 469.333333 0 0 1-71.893334 57.813333 426.666667 426.666667 0 0 0-128 119.466667 358.4 358.4 0 0 0-89.173333-91.52c-60.586667-45.013333-145.28-62.506667-189.013333-128-28.586667-42.666667-40.96-149.333333-11.733334-190.293333-19.413333 59.52 115.626667 84.053333 146.773334 126.506666 0-12.16 2.56-26.24 2.133333-38.4 18.773333 27.946667 45.013333 57.386667 67.626667 85.333334a434.56 434.56 0 0 1 82.133333 180.906666c43.946667-56.746667 49.28-141.226667 124.373333-180.48a50.773333 50.773333 0 0 0-7.68 31.146667c24.96-60.8 134.613333-49.066667 158.08-45.653333z"
+                                    fill="#FFFFFF"
+                                    p-id="38720"
+                            ></path>
+                        </svg>
 
-                            <a class="flex items-center cursor-pointer" @click="showDonationPopup = true">
-                                <svg t="1753185700592" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="38717" width="12" height="12">
-                                    <path d="M512 512m-512 0a512 512 0 1 0 1024 0 512 512 0 1 0-1024 0Z" fill="#F75280" p-id="38718"></path>
-                                    <path
-                                        d="M406.826667 291.2a173.44 173.44 0 0 1 128 64 173.44 173.44 0 0 1 128-64 147.626667 147.626667 0 0 1 123.093333 59.733333 158.72 158.72 0 0 1 17.706667 139.733334 341.333333 341.333333 0 0 0-59.093334 0 97.28 97.28 0 0 0-2.773333-106.666667 94.506667 94.506667 0 0 0-78.08-36.48c-47.36 0-99.84 36.906667-128 98.133333-27.733333-60.373333-79.36-98.133333-128-98.133333a89.173333 89.173333 0 0 0-88.746667 57.6 115.413333 115.413333 0 0 1-45.653333-33.493333 148.053333 148.053333 0 0 1 133.546667-80.426667z"
-                                        fill="#FFFFFF"
-                                        p-id="38719"
-                                    ></path>
-                                    <path
-                                        d="M818.346667 515.626667c-44.586667 4.053333-55.466667 46.08-82.56 73.173333a469.333333 469.333333 0 0 1-71.893334 57.813333 426.666667 426.666667 0 0 0-128 119.466667 358.4 358.4 0 0 0-89.173333-91.52c-60.586667-45.013333-145.28-62.506667-189.013333-128-28.586667-42.666667-40.96-149.333333-11.733334-190.293333-19.413333 59.52 115.626667 84.053333 146.773334 126.506666 0-12.16 2.56-26.24 2.133333-38.4 18.773333 27.946667 45.013333 57.386667 67.626667 85.333334a434.56 434.56 0 0 1 82.133333 180.906666c43.946667-56.746667 49.28-141.226667 124.373333-180.48a50.773333 50.773333 0 0 0-7.68 31.146667c24.96-60.8 134.613333-49.066667 158.08-45.653333z"
-                                        fill="#FFFFFF"
-                                        p-id="38720"
-                                    ></path>
-                                </svg>
+                        <span class="ml-2 hover:text-blue-500">打赏开发者</span>
+                    </a>
 
-                                <span class="ml-2 hover:text-blue-500">打赏开发者</span>
-                            </a>
-
-                            <a class="flex items-center cursor-pointer" target="_blank" href="https://github.com/iHongRen/SandboxFinder">
-                                <img src="https://img.shields.io/github/stars/iHongRen/SandboxFinder.svg?style=social" alt="GitHub Stars" />
-                            </a>
-                        </div>
-                    </div>
+                    <a class="flex items-center cursor-pointer" target="_blank"
+                       href="https://github.com/iHongRen/SandboxFinder">
+                        <img src="https://img.shields.io/github/stars/iHongRen/SandboxFinder.svg?style=social"
+                             alt="GitHub Stars"/>
+                    </a>
                 </div>
+            </div>
+        </div>
 
-                <!-- Donation Popup -->
-                <div v-if="showDonationPopup" class="fixed bottom-4 left-4 bg-white rounded-lg shadow-xl p-4 w-80 border z-50">
-                    <div class="flex justify-between items-center mb-2">
-                        <h3 class="text-lg font-semibold">打赏开发者</h3>
+        <!-- Donation Popup -->
+        <div v-if="showDonationPopup" class="fixed bottom-4 left-4 bg-white rounded-lg shadow-xl p-4 w-80 border z-50">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="text-lg font-semibold">打赏开发者</h3>
 
-                        <button @click="showDonationPopup = false" class="p-1 rounded hover:bg-gray-200">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div class="flex justify-around">
-                        <div class="text-center">
-                            <img src="https://xiguanlu.oss-cn-chengdu.aliyuncs.com/donation/imgs/wx.png" alt="WeChat Pay" class="w-32 h-32" />
-                            <p class="text-sm mt-1">微信扫码</p>
-                        </div>
-                        <div class="text-center">
-                            <img src="https://xiguanlu.oss-cn-chengdu.aliyuncs.com/donation/imgs/ali.png" alt="Alipay" class="w-32 h-32" />
-                            <p class="text-sm mt-1">支付宝扫码</p>
-                        </div>
-                    </div>
+                <button @click="showDonationPopup = false" class="p-1 rounded hover:bg-gray-200">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="flex justify-around">
+                <div class="text-center">
+                    <img src="https://xiguanlu.oss-cn-chengdu.aliyuncs.com/donation/imgs/wx.png" alt="WeChat Pay"
+                         class="w-32 h-32"/>
+                    <p class="text-sm mt-1">微信扫码</p>
                 </div>
+                <div class="text-center">
+                    <img src="https://xiguanlu.oss-cn-chengdu.aliyuncs.com/donation/imgs/ali.png" alt="Alipay"
+                         class="w-32 h-32"/>
+                    <p class="text-sm mt-1">支付宝扫码</p>
+                </div>
+            </div>
+        </div>
 
-                <!-- Main Content -->
-                <div class="flex-1 flex flex-col overflow-hidden">
-                    <!-- Top Navigation -->
-                    <div class="bg-white shadow-sm border-b p-2 flex items-center justify-between">
-                        <div class="flex items-center">
-                            <button @click="showSidebar = !showSidebar" class="mr-2 p-2 rounded hover:bg-gray-200 md:hidden">
-                                <i class="fas fa-bars text-gray-600"></i>
-                            </button>
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Top Navigation -->
+            <div class="bg-white shadow-sm border-b p-2 flex items-center justify-between">
+                <div class="flex items-center">
+                    <button @click="showSidebar = !showSidebar" class="mr-2 p-2 rounded hover:bg-gray-200 md:hidden">
+                        <i class="fas fa-bars text-gray-600"></i>
+                    </button>
 
-                            <div class="flex items-center space-x-1 text-sm bg-gray-100 rounded px-2 py-1 path-breadcrumb">
-                                <span class="text-gray-500">/</span>
-                                <template v-for="(part, index) in pathParts" :key="index">
-                                    <span @click="navigateTo(index)" class="cursor-pointer hover:text-blue-500" :class="{ 'text-blue-500 font-medium': index === pathParts.length - 1 }">
+                    <div class="flex items-center space-x-1 text-sm bg-gray-100 rounded px-2 py-1 path-breadcrumb">
+                        <span class="text-gray-500">/</span>
+                        <template v-for="(part, index) in pathParts" :key="index">
+                                    <span @click="navigateTo(index)" class="cursor-pointer hover:text-blue-500"
+                                          :class="{ 'text-blue-500 font-medium': index === pathParts.length - 1 }">
                                         {{ part }}
                                     </span>
-                                    <span class="text-gray-500" v-if="index < pathParts.length - 1">/</span>
-                                </template>
-                            </div>
-                        </div>
+                            <span class="text-gray-500" v-if="index < pathParts.length - 1">/</span>
+                        </template>
+                    </div>
+                </div>
 
-                        <div class="flex items-center space-x-2">
-                            <div class="relative">
-                                <input
-                                    type="text"
-                                    v-model="searchQuery"
-                                    placeholder="搜索..."
-                                    class="pl-8 pr-4 py-1 border rounded-full text-sm focus:outline-none focus:ring-1 focus:ring-blue-300 focus:border-blue-300"
-                                />
-                                <i class="fas fa-search absolute left-3 top-2 text-gray-400"></i>
-                            </div>
-
-                            <button @click="toggleViewMode" class="p-2 rounded hover:bg-gray-200">
-                                <i class="fas" :class="{ 'fa-th-large': viewMode === 'list', 'fa-list': viewMode === 'grid' }"></i>
-                            </button>
-                        </div>
+                <div class="flex items-center space-x-2">
+                    <div class="relative">
+                        <input
+                                type="text"
+                                v-model="searchQuery"
+                                placeholder="搜索..."
+                                class="pl-8 pr-4 py-1 border rounded-full text-sm focus:outline-none focus:ring-1 focus:ring-blue-300 focus:border-blue-300"
+                        />
+                        <i class="fas fa-search absolute left-3 top-2 text-gray-400"></i>
                     </div>
 
-                    <!-- Main Area -->
-                    <div class="flex-1 overflow-hidden">
-                        <div class="flex h-full">
-                            <!-- File List -->
-                            <div
-                                :class="['overflow-y-auto p-2 bg-white transition-all duration-150', isPreviewing ? 'w-1/2 border-r' : 'w-full', dragOver ? 'ring-4 ring-blue-400 bg-blue-50' : '']"
-                                @dragover.prevent="isWriteable && onDragOver($event)"
-                                @dragleave.prevent="isWriteable && onDragLeave($event)"
-                                @drop.prevent="isWriteable && onDrop($event)"
-                            >
-                                <div class="flex items-center justify-start mb-2 px-1 gap-2">
-                                    <div class="flex space-x-1 items-center">
-                                        <button @click="goUpLevel" class="p-1 rounded hover:bg-gray-200" title="返回上一级" v-if="!isRootPath(currentPath)">
-                                            <i class="fa-solid fa-arrow-left fa-lg text-gray-500"></i>
-                                        </button>
-                                        <button @click="refreshCurrentPath" class="p-1 rounded hover:bg-gray-200" title="刷新当前目录">
-                                            <i :class="['fas', 'fa-rotate-right', 'text-gray-500', 'fa-lg', isRefreshing ? 'fa-fast-spin' : '']"></i>
-                                        </button>
+                    <button @click="toggleViewMode" class="p-2 rounded hover:bg-gray-200">
+                        <i class="fas"
+                           :class="{ 'fa-th-large': viewMode === 'list', 'fa-list': viewMode === 'grid' }"></i>
+                    </button>
+                </div>
+            </div>
 
-                                        <button @click="copyPath" class="p-1 rounded hover:bg-gray-200" title="复制路径">
-                                            <i class="fa-solid fa-clipboard text-gray-400 fa-lg"></i>
-                                        </button>
+            <!-- Main Area -->
+            <div class="flex-1 overflow-hidden">
+                <div class="flex h-full">
+                    <!-- File List -->
+                    <div
+                            :class="['overflow-y-auto p-2 bg-white transition-all duration-150', isPreviewing ? 'w-1/2 border-r' : 'w-full', dragOver ? 'ring-4 ring-blue-400 bg-blue-50' : '']"
+                            @dragover.prevent="isWriteable && onDragOver($event)"
+                            @dragleave.prevent="isWriteable && onDragLeave($event)"
+                            @drop.prevent="isWriteable && onDrop($event)"
+                    >
+                        <div class="flex items-center justify-start mb-2 px-1 gap-2">
+                            <div class="flex space-x-1 items-center">
+                                <button @click="goUpLevel" class="p-1 rounded hover:bg-gray-200" title="返回上一级"
+                                        v-if="!isRootPath(currentPath)">
+                                    <i class="fa-solid fa-arrow-left fa-lg text-gray-500"></i>
+                                </button>
+                                <button @click="refreshCurrentPath" class="p-1 rounded hover:bg-gray-200"
+                                        title="刷新当前目录">
+                                    <i :class="['fas', 'fa-rotate-right', 'text-gray-500', 'fa-lg', isRefreshing ? 'fa-fast-spin' : '']"></i>
+                                </button>
 
-                                        <template v-if="isWriteable">
-                                            <button @click="createNewFolder" class="p-1 rounded hover:bg-gray-200" title="新建文件夹">
-                                                <i class="fas fa-folder-plus text-blue-500 fa-lg"></i>
-                                            </button>
-                                            <button @click="uploadFile" class="p-1 rounded hover:bg-gray-200" title="上传文件">
-                                                <i class="fas fa-file-upload text-green-500 fa-lg"></i>
-                                            </button>
-                                        </template>
-                                    </div>
+                                <button @click="copyPath" class="p-1 rounded hover:bg-gray-200" title="复制路径">
+                                    <i class="fa-solid fa-clipboard text-gray-400 fa-lg"></i>
+                                </button>
 
-                                    <h3 class="font-medium text-gray-700">{{ filteredItems.length }} 个项目</h3>
-                                </div>
+                                <template v-if="isWriteable">
+                                    <button @click="createNewFolder" class="p-1 rounded hover:bg-gray-200"
+                                            title="新建文件夹">
+                                        <i class="fas fa-folder-plus text-blue-500 fa-lg"></i>
+                                    </button>
+                                    <button @click="uploadFile" class="p-1 rounded hover:bg-gray-200" title="上传文件">
+                                        <i class="fas fa-file-upload text-green-500 fa-lg"></i>
+                                    </button>
+                                </template>
+                            </div>
 
-                                <!-- List View -->
-                                <div v-if="viewMode === 'list'" class="rounded-lg overflow-hidden">
-                                    <table class="min-w-full divide-y divide-gray-200">
-                                        <thead class="bg-gray-50">
-                                            <tr>
-                                                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" @click="sortBy('name')">
-                                                    <div class="flex items-center">
-                                                        名称
-                                                        <i class="fas ml-1" :class="sortIcon('name')"></i>
-                                                    </div>
-                                                </th>
-                                                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" @click="sortBy('size')">
-                                                    <div class="flex items-center">
-                                                        大小
-                                                        <i class="fas ml-1" :class="sortIcon('size')"></i>
-                                                    </div>
-                                                </th>
-                                                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" @click="sortBy('modified')">
-                                                    <div class="flex items-center">
-                                                        修改时间
-                                                        <i class="fas ml-1" :class="sortIcon('modified')"></i>
-                                                    </div>
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="bg-white divide-y divide-gray-200">
-                                            <tr
-                                                v-for="item in filteredItems"
-                                                :key="item.path"
-                                                @click="item.isFolder ? enterFolder(item.name) : previewFile(item)"
-                                                @contextmenu.prevent="showContextMenu($event, item)"
-                                                class="hover:bg-blue-50 cursor-pointer"
-                                                :class="{ 'bg-blue-100': selectedItem && selectedItem.path === item.path }"
-                                            >
-                                                <td class="px-4 py-2 whitespace-normal">
-                                                    <div class="flex items-center">
-                                                        <div class="file-icon">
-                                                            <i :class="getFileIcon(item)"></i>
-                                                        </div>
-                                                        <div class="text-sm font-medium text-gray-600">
-                                                            {{ item.name }}
-                                                            <span v-if="item.isRenaming" class="ml-2 text-blue-500">(重命名中...)</span>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{{ formatFileSize(item.size) }}</td>
-                                                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{{ formatDate(item.modified) }}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
+                            <h3 class="font-medium text-gray-700">{{ filteredItems.length }} 个项目</h3>
+                        </div>
 
-                                <!-- Grid View -->
-                                <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                                    <div
+                        <!-- List View -->
+                        <div v-if="viewMode === 'list'" class="rounded-lg overflow-hidden">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col"
+                                        class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                        @click="sortBy('name')">
+                                        <div class="flex items-center">
+                                            名称
+                                            <i class="fas ml-1" :class="sortIcon('name')"></i>
+                                        </div>
+                                    </th>
+                                    <th scope="col"
+                                        class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                        @click="sortBy('size')">
+                                        <div class="flex items-center">
+                                            大小
+                                            <i class="fas ml-1" :class="sortIcon('size')"></i>
+                                        </div>
+                                    </th>
+                                    <th scope="col"
+                                        class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                        @click="sortBy('modified')">
+                                        <div class="flex items-center">
+                                            修改时间
+                                            <i class="fas ml-1" :class="sortIcon('modified')"></i>
+                                        </div>
+                                    </th>
+                                </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                <tr
                                         v-for="item in filteredItems"
                                         :key="item.path"
                                         @click="item.isFolder ? enterFolder(item.name) : previewFile(item)"
                                         @contextmenu.prevent="showContextMenu($event, item)"
-                                        class="rounded-lg p-2 border hover:bg-blue-50 cursor-pointer"
-                                        :class="{ 'bg-blue-100 border-blue-200': selectedItem && selectedItem.path === item.path }"
-                                    >
-                                        <div class="flex flex-col items-center text-center">
-                                            <div class="file-icon mb-2">
-                                                <i :class="getFileIcon(item)" class="fa-lg"></i>
+                                        class="hover:bg-blue-50 cursor-pointer"
+                                        :class="{ 'bg-blue-100': selectedItem && selectedItem.path === item.path }"
+                                >
+                                    <td class="px-4 py-2 whitespace-normal">
+                                        <div class="flex items-center">
+                                            <div class="file-icon">
+                                                <i :class="getFileIcon(item)"></i>
                                             </div>
-                                            <div class="text-xs font-medium text-gray-900 break-words w-full">{{ item.name }}</div>
-                                            <div class="text-xs text-gray-500 mt-1">{{ formatFileSize(item.size) }}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Preview Panel -->
-                            <div class="flex-1 overflow-y-auto bg-gray-50 p-4" v-if="isPreviewing">
-                                <div v-if="selectedItem">
-                                    <div class="flex justify-between items-center mb-4">
-                                        <h3 class="text-lg font-semibold text-gray-800">预览: {{ selectedItem.name }}</h3>
-                                        <button @click="isPreviewing = false" class="p-1 rounded hover:bg-gray-200">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                    </div>
-
-                                    <div class="preview-container rounded-lg bg-white shadow border overflow-auto">
-                                        <!-- 新预览逻辑：后端type统一，支持文本/媒体/其他 -->
-                                        <div v-if="previewType === 'text'" class="p-4">
-                                            <pre class="whitespace-pre-wrap font-mono text-sm">{{ fileContent }}</pre>
-                                        </div>
-                                        <div v-else-if="previewType === 'sqlite'">
-                                            <div class="p-4">
-                                                <div v-if="sqliteError" class="text-red-500 mb-2">{{ sqliteError }}</div>
-                                                <div v-if="sqliteTables.length === 0 && !sqliteError" class="text-gray-500">未检测到表</div>
-                                                <div v-else>
-                                                    <div class="mb-2 flex flex-wrap gap-2">
-                                                        <button
-                                                            v-for="table in sqliteTables"
-                                                            :key="table"
-                                                            @click="showSQLiteTable(table)"
-                                                            :class="['px-2 py-1 rounded', currentSQLiteTable === table ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-blue-100']"
-                                                        >
-                                                            {{ table }}
-                                                        </button>
-                                                    </div>
-                                                    <div v-if="sqliteColumns.length > 0">
-                                                        <table class="min-w-full text-xs border">
-                                                            <thead>
-                                                                <tr>
-                                                                    <th v-for="col in sqliteColumns" :key="col" class="border px-2 py-1 bg-gray-50">{{ col }}</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                <tr v-for="row in sqliteData" :key="row.__rowid || row[sqliteColumns[0]]">
-                                                                    <td v-for="col in sqliteColumns" :key="col" class="border px-2 py-1">{{ row[col] }}</td>
-                                                                </tr>
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                    <div v-else class="text-gray-400">无数据</div>
-                                                </div>
+                                            <div class="text-sm font-medium text-gray-600">
+                                                {{ item.name }}
+                                                <span v-if="item.isRenaming"
+                                                      class="ml-2 text-blue-500">(重命名中...)</span>
                                             </div>
                                         </div>
-                                        <div v-else-if="previewType === 'media'">
-                                            <template v-if="previewMediaKind === 'image'">
-                                                <div class="flex items-center justify-center h-full">
-                                                    <img :src="previewUrl" :alt="selectedItem.name" class="max-h-full max-w-full" />
-                                                </div>
-                                            </template>
-                                            <template v-else-if="previewMediaKind === 'video'">
-                                                <div class="flex items-center justify-center h-full">
-                                                    <video controls class="max-h-full max-w-full">
-                                                        <source :src="previewUrl" />
-                                                        您的浏览器不支持 video 标签。
-                                                    </video>
-                                                </div>
-                                            </template>
-                                            <template v-else-if="previewMediaKind === 'audio'">
-                                                <div class="flex items-center justify-center h-full">
-                                                    <audio controls class="w-full">
-                                                        <source :src="previewUrl" />
-                                                        您的浏览器不支持 audio 标签。
-                                                    </audio>
-                                                </div>
-                                            </template>
-                                            <template v-else>
-                                                <div class="text-gray-500 text-center py-8">暂不支持此媒体类型预览</div>
-                                            </template>
-                                        </div>
-                                        <div v-else-if="previewType === 'other'" class="flex flex-col items-center justify-center h-full text-gray-500 p-8">
-                                            <i class="fas fa-file-exclamation text-4xl mb-4"></i>
-                                            <p class="text-lg">此文件类型不支持预览</p>
-                                            <button @click="downloadFile" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                                                <i class="fas fa-download mr-2"></i>
-                                                下载文件
-                                            </button>
-                                        </div>
-                                    </div>
+                                    </td>
+                                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{{
+                                        formatFileSize(item.size) }}
+                                    </td>
+                                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{{
+                                        formatDate(item.modified) }}
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
 
-                                    <div class="mt-4 flex justify-between items-center gap-2">
-                                        <div class="text-sm text-gray-500 min-w-0 flex-1">
-                                            <p>大小: {{ formatFileSize(selectedItem.size) }}</p>
-                                            <p>修改时间: {{ formatDate(selectedItem.modified) }}</p>
-                                            <p class="break-all" :title="currentPath + '/' + selectedItem.name">路径: {{ currentPath }}/{{ selectedItem.name }}</p>
-                                        </div>
-                                        <div class="flex-shrink-0 flex space-x-2" v-if="isWriteable">
-                                            <button @click="downloadFile" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm whitespace-nowrap">
-                                                <i class="fas fa-download mr-1"></i>下载
-                                            </button>
-                                            <button @click="deleteItem(selectedItem)" class="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 rounded text-sm whitespace-nowrap">
-                                                <i class="fas fa-trash mr-1"></i>删除
-                                            </button>
-                                        </div>
+                        <!-- Grid View -->
+                        <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                            <div
+                                    v-for="item in filteredItems"
+                                    :key="item.path"
+                                    @click="item.isFolder ? enterFolder(item.name) : previewFile(item)"
+                                    @contextmenu.prevent="showContextMenu($event, item)"
+                                    class="rounded-lg p-2 border hover:bg-blue-50 cursor-pointer"
+                                    :class="{ 'bg-blue-100 border-blue-200': selectedItem && selectedItem.path === item.path }"
+                            >
+                                <div class="flex flex-col items-center text-center">
+                                    <div class="file-icon mb-2">
+                                        <i :class="getFileIcon(item)" class="fa-lg"></i>
                                     </div>
+                                    <div class="text-xs font-medium text-gray-900 break-words w-full">{{ item.name }}
+                                    </div>
+                                    <div class="text-xs text-gray-500 mt-1">{{ formatFileSize(item.size) }}</div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- Context Menu -->
-            <div
-                v-if="contextMenu.visible"
-                class="context-menu bg-white shadow-lg rounded-md py-1 border transform transition-all"
-                :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
-                @click.stop
-            >
-                <!-- <div v-if="!contextMenu.item.isFolder" @click="previewFile(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
-            <i class="fas fa-eye mr-2 text-purple-500"></i>
-            预览
-        </div> -->
-                <div v-if="!contextMenu.item.isFolder" @click="downloadItem(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
-                    <i class="fas fa-download mr-2 text-green-500"></i>
-                    下载
-                </div>
-                <template v-if="isWriteable">
-                    <div @click="initiateRename(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
-                        <i class="fas fa-pencil-alt mr-2 text-yellow-500"></i>
-                        重命名
-                    </div>
-                    <!-- <div @click="showMoveDialog(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
-                <i class="fas fa-arrows-alt mr-2 text-blue-500"></i>
-                移动
-            </div> -->
-                    <div class="border-t my-1"></div>
-                    <div @click="deleteItem(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center text-red-500">
-                        <i class="fas fa-trash mr-2"></i>
-                        删除
-                    </div>
-                </template>
-            </div>
+                    <!-- Preview Panel -->
+                    <div class="flex-1 overflow-y-auto bg-gray-50 p-4" v-if="isPreviewing">
+                        <div v-if="selectedItem">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-semibold text-gray-800">预览: {{ selectedItem.name }}</h3>
+                                <button @click="isPreviewing = false" class="p-1 rounded hover:bg-gray-200">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
 
-            <!-- New Folder Dialog -->
-            <div v-if="isCreatingFolder" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div class="bg-white rounded-lg shadow-xl p-4 w-96">
-                    <h3 class="text-lg font-semibold mb-4">新建文件夹</h3>
-                    <input
-                        v-model="newFolderName"
-                        @keyup.enter="confirmCreateFolder"
-                        type="text"
-                        placeholder="文件夹名称"
-                        class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-1 focus:ring-blue-300"
-                    />
-                    <div class="flex justify-end mt-4 space-x-2">
-                        <button @click="isCreatingFolder = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">取消</button>
-                        <button @click="confirmCreateFolder" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">创建</button>
-                    </div>
-                </div>
-            </div>
+                            <div class="preview-container rounded-lg bg-white shadow border overflow-auto">
+                                <!-- 新预览逻辑：后端type统一，支持文本/媒体/其他 -->
+                                <div v-if="previewType === 'text'" class="p-4">
+                                    <pre class="whitespace-pre-wrap font-mono text-sm">{{ fileContent }}</pre>
+                                </div>
+                                <div v-else-if="previewType === 'sqlite'">
+                                    <div class="p-4">
+                                        <div v-if="sqliteError" class="text-red-500 mb-2">{{ sqliteError }}</div>
+                                        <div v-if="sqliteTables.length === 0 && !sqliteError" class="text-gray-500">
+                                            未检测到表
+                                        </div>
+                                        <div v-else>
+                                            <div class="mb-2 flex flex-wrap gap-2">
+                                                <button
+                                                        v-for="table in sqliteTables"
+                                                        :key="table"
+                                                        @click="showSQLiteTable(table)"
+                                                        :class="['px-2 py-1 rounded', currentSQLiteTable === table ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-blue-100']"
+                                                >
+                                                    {{ table }}
+                                                </button>
+                                            </div>
+                                            <div v-if="sqliteColumns.length > 0">
+                                                <table class="min-w-full text-xs border">
+                                                    <thead>
+                                                    <tr>
+                                                        <th v-for="col in sqliteColumns" :key="col"
+                                                            class="border px-2 py-1 bg-gray-50">{{ col }}
+                                                        </th>
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                    <tr v-for="row in sqliteData"
+                                                        :key="row.__rowid || row[sqliteColumns[0]]">
+                                                        <td v-for="col in sqliteColumns" :key="col"
+                                                            class="border px-2 py-1">{{ row[col] }}
+                                                        </td>
+                                                    </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <div v-else class="text-gray-400">无数据</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div v-else-if="previewType === 'media'">
+                                    <template v-if="previewMediaKind === 'image'">
+                                        <div class="flex items-center justify-center h-full">
+                                            <img :src="previewUrl" :alt="selectedItem.name"
+                                                 class="max-h-full max-w-full"/>
+                                        </div>
+                                    </template>
+                                    <template v-else-if="previewMediaKind === 'video'">
+                                        <div class="flex items-center justify-center h-full">
+                                            <video controls class="max-h-full max-w-full">
+                                                <source :src="previewUrl"/>
+                                                您的浏览器不支持 video 标签。
+                                            </video>
+                                        </div>
+                                    </template>
+                                    <template v-else-if="previewMediaKind === 'audio'">
+                                        <div class="flex items-center justify-center h-full">
+                                            <audio controls class="w-full">
+                                                <source :src="previewUrl"/>
+                                                您的浏览器不支持 audio 标签。
+                                            </audio>
+                                        </div>
+                                    </template>
+                                    <template v-else>
+                                        <div class="text-gray-500 text-center py-8">暂不支持此媒体类型预览</div>
+                                    </template>
+                                </div>
+                                <div v-else-if="previewType === 'other'"
+                                     class="flex flex-col items-center justify-center h-full text-gray-500 p-8">
+                                    <i class="fas fa-file-exclamation text-4xl mb-4"></i>
+                                    <p class="text-lg">此文件类型不支持预览</p>
+                                    <button @click="downloadFile"
+                                            class="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                        <i class="fas fa-download mr-2"></i>
+                                        下载文件
+                                    </button>
+                                </div>
+                            </div>
 
-            <!-- Rename Dialog -->
-            <div v-if="isRenamingItem" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div class="bg-white rounded-lg shadow-xl p-4 w-96">
-                    <h3 class="text-lg font-semibold mb-4">重命名 "{{ itemToRename.name }}"</h3>
-                    <input
-                        v-model="newItemName"
-                        @keyup.enter="confirmRename"
-                        type="text"
-                        placeholder="新名称"
-                        class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-1 focus:ring-blue-300"
-                    />
-                    <div class="flex justify-end mt-4 space-x-2">
-                        <button @click="isRenamingItem = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">取消</button>
-                        <button @click="confirmRename" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">重命名</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Delete Confirmation Dialog -->
-            <div v-if="isDeletingItem" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div class="bg-white rounded-lg shadow-xl p-4 w-96">
-                    <h3 class="text-lg font-semibold mb-4">删除确认</h3>
-                    <p>您确定要删除 "{{ itemToDelete.name }}" 吗？</p>
-                    <div class="flex justify-end mt-4 space-x-2">
-                        <button @click="isDeletingItem = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">取消</button>
-                        <button @click="confirmDelete" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">删除</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Move Dialog -->
-            <div v-if="isMovingItem" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div class="bg-white rounded-lg shadow-xl p-4 w-96 max-h-[80vh] flex flex-col">
-                    <h3 class="text-lg font-semibold mb-4">移动 "{{ itemToMove.name }}"</h3>
-                    <div class="flex-1 overflow-y-auto mb-4 border rounded p-2">
-                        <div class="flex items-center hover:bg-gray-100 p-1 rounded cursor-pointer" @click="moveTargetPath = ''">
-                            <i class="fas fa-home mr-2 text-blue-500"></i>
-                            <span>根目录</span>
+                            <div class="mt-4 flex justify-between items-center gap-2">
+                                <div class="text-sm text-gray-500 min-w-0 flex-1">
+                                    <p>大小: {{ formatFileSize(selectedItem.size) }}</p>
+                                    <p>修改时间: {{ formatDate(selectedItem.modified) }}</p>
+                                    <p class="break-all" :title="currentPath + '/' + selectedItem.name">路径: {{
+                                        currentPath }}/{{ selectedItem.name }}</p>
+                                </div>
+                                <div class="flex-shrink-0 flex space-x-2" v-if="isWriteable">
+                                    <button @click="downloadFile"
+                                            class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm whitespace-nowrap">
+                                        <i class="fas fa-download mr-1"></i>下载
+                                    </button>
+                                    <button @click="deleteItem(selectedItem)"
+                                            class="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 rounded text-sm whitespace-nowrap">
+                                        <i class="fas fa-trash mr-1"></i>删除
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-
-                        <div
-                            v-for="folder in allFolders"
-                            :key="folder.path"
-                            class="flex items-center hover:bg-gray-100 p-1 rounded cursor-pointer ml-4"
-                            @click="moveTargetPath = folder.path"
-                            :class="{ 'bg-blue-50': moveTargetPath === folder.path }"
-                        >
-                            <i class="fas fa-folder mr-2 text-yellow-500"></i>
-                            <span>{{ folder.name }}</span>
-                        </div>
-                    </div>
-                    <div class="flex justify-end space-x-2">
-                        <button @click="isMovingItem = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">取消</button>
-                        <button @click="confirmMoveItem" :disabled="!moveTargetPath" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50">移动</button>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <!-- Upload Dialog -->
-            <input type="file" ref="fileInput" @change="handleFileUpload" class="hidden" multiple />
+    <!-- Context Menu -->
+    <div
+            v-if="contextMenu.visible"
+            class="context-menu bg-white shadow-lg rounded-md py-1 border transform transition-all"
+            :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
+            @click.stop
+    >
+        <!-- <div v-if="!contextMenu.item.isFolder" @click="previewFile(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
+    <i class="fas fa-eye mr-2 text-purple-500"></i>
+    预览
+</div> -->
+        <div v-if="!contextMenu.item.isFolder" @click="downloadItem(contextMenu.item); closeContextMenu()"
+             class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
+            <i class="fas fa-download mr-2 text-green-500"></i>
+            下载
+        </div>
+        <template v-if="isWriteable">
+            <div @click="initiateRename(contextMenu.item); closeContextMenu()"
+                 class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
+                <i class="fas fa-pencil-alt mr-2 text-yellow-500"></i>
+                重命名
+            </div>
+            <!-- <div @click="showMoveDialog(contextMenu.item); closeContextMenu()" class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
+        <i class="fas fa-arrows-alt mr-2 text-blue-500"></i>
+        移动
+    </div> -->
+            <div class="border-t my-1"></div>
+            <div @click="deleteItem(contextMenu.item); closeContextMenu()"
+                 class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center text-red-500">
+                <i class="fas fa-trash mr-2"></i>
+                删除
+            </div>
+        </template>
+    </div>
 
-            <div
-                v-if="toastVisible"
-                :class="[
+    <!-- New Folder Dialog -->
+    <div v-if="isCreatingFolder" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl p-4 w-96">
+            <h3 class="text-lg font-semibold mb-4">新建文件夹</h3>
+            <input
+                    v-model="newFolderName"
+                    @keyup.enter="confirmCreateFolder"
+                    type="text"
+                    placeholder="文件夹名称"
+                    class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-1 focus:ring-blue-300"
+            />
+            <div class="flex justify-end mt-4 space-x-2">
+                <button @click="isCreatingFolder = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">
+                    取消
+                </button>
+                <button @click="confirmCreateFolder" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                    创建
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rename Dialog -->
+    <div v-if="isRenamingItem" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl p-4 w-96">
+            <h3 class="text-lg font-semibold mb-4">重命名 "{{ itemToRename.name }}"</h3>
+            <input
+                    v-model="newItemName"
+                    @keyup.enter="confirmRename"
+                    type="text"
+                    placeholder="新名称"
+                    class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-1 focus:ring-blue-300"
+            />
+            <div class="flex justify-end mt-4 space-x-2">
+                <button @click="isRenamingItem = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">取消
+                </button>
+                <button @click="confirmRename" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                    重命名
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Dialog -->
+    <div v-if="isDeletingItem" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl p-4 w-96">
+            <h3 class="text-lg font-semibold mb-4">删除确认</h3>
+            <p>您确定要删除 "{{ itemToDelete.name }}" 吗？</p>
+            <div class="flex justify-end mt-4 space-x-2">
+                <button @click="isDeletingItem = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">取消
+                </button>
+                <button @click="confirmDelete" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">删除
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Move Dialog -->
+    <div v-if="isMovingItem" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl p-4 w-96 max-h-[80vh] flex flex-col">
+            <h3 class="text-lg font-semibold mb-4">移动 "{{ itemToMove.name }}"</h3>
+            <div class="flex-1 overflow-y-auto mb-4 border rounded p-2">
+                <div class="flex items-center hover:bg-gray-100 p-1 rounded cursor-pointer"
+                     @click="moveTargetPath = ''">
+                    <i class="fas fa-home mr-2 text-blue-500"></i>
+                    <span>根目录</span>
+                </div>
+
+                <div
+                        v-for="folder in allFolders"
+                        :key="folder.path"
+                        class="flex items-center hover:bg-gray-100 p-1 rounded cursor-pointer ml-4"
+                        @click="moveTargetPath = folder.path"
+                        :class="{ 'bg-blue-50': moveTargetPath === folder.path }"
+                >
+                    <i class="fas fa-folder mr-2 text-yellow-500"></i>
+                    <span>{{ folder.name }}</span>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2">
+                <button @click="isMovingItem = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">取消
+                </button>
+                <button @click="confirmMoveItem" :disabled="!moveTargetPath"
+                        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50">移动
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Dialog -->
+    <input type="file" ref="fileInput" @change="handleFileUpload" class="hidden" multiple/>
+
+    <div
+            v-if="toastVisible"
+            :class="[
                     'fixed left-1/2 -translate-x-1/2 top-8 z-[9999] min-w-[180px] max-w-[320px] px-4 py-2 rounded shadow-lg animate-fade-in flex items-center justify-center',
                     toastType === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
                 ]"
-                style="pointer-events: none"
-            >
-                <i v-if="toastType === 'error'" class="fas fa-exclamation-circle mr-2"></i>
-                <i v-else class="fas fa-check-circle mr-2"></i>
-                {{ toastMsg }}
-            </div>
-        </div>
+            style="pointer-events: none"
+    >
+        <i v-if="toastType === 'error'" class="fas fa-exclamation-circle mr-2"></i>
+        <i v-else class="fas fa-check-circle mr-2"></i>
+        {{ toastMsg }}
+    </div>
+</div>
 
-        <script>
-            const { createApp, ref, computed, onMounted, watch } = Vue
+<script>
+    const { createApp, ref, computed, onMounted, watch } = Vue
 
-            createApp({
-                setup() {
-                    // 全局错误弹窗
-                    const errorDialog = ref(false)
-                    const errorMsg = ref('')
+    createApp({
+        setup() {
+            // 全局错误弹窗
+            const errorDialog = ref(false)
+            const errorMsg = ref('')
 
-                    // State
-                    const items = ref([])
-                    const selectedItem = ref(null)
-                    const currentPath = ref('')
-                    const shortcuts = ref([])
-                    const appInfo = ref({})
-                    const viewMode = ref('list')
-                    const sortField = ref('name')
-                    const sortDirection = ref('asc')
-                    const isPreviewing = ref(false)
-                    const isPreviewFullscreen = ref(false)
-                    const fileContent = ref('')
-                    const searchQuery = ref('')
-                    const newFolderName = ref('')
-                    const isCreatingFolder = ref(false)
-                    const showSidebar = ref(false)
-                    const sqliteTables = ref([])
-                    const sqliteColumns = ref([])
-                    const sqliteData = ref([])
-                    const currentSQLiteTable = ref('')
-                    const contextMenu = ref({
-                        visible: false,
-                        x: 0,
-                        y: 0,
-                        item: null
-                    })
-                    const isMovingItem = ref(false)
-                    const itemToMove = ref(null)
-                    const moveTargetPath = ref('')
-                    const allFolders = ref([])
-                    const isRenamingItem = ref(false)
-                    const itemToRename = ref(null)
-                    const newItemName = ref('')
-                    const showDonationPopup = ref(false)
+            // State
+            const items = ref([])
+            const selectedItem = ref(null)
+            const currentPath = ref('')
+            const shortcuts = ref([])
+            const appInfo = ref({})
+            const viewMode = ref('list')
+            const sortField = ref('name')
+            const sortDirection = ref('asc')
+            const isPreviewing = ref(false)
+            const isPreviewFullscreen = ref(false)
+            const fileContent = ref('')
+            const searchQuery = ref('')
+            const newFolderName = ref('')
+            const isCreatingFolder = ref(false)
+            const showSidebar = ref(false)
+            const sqliteTables = ref([])
+            const sqliteColumns = ref([])
+            const sqliteData = ref([])
+            const currentSQLiteTable = ref('')
+            const contextMenu = ref({
+                visible: false,
+                x: 0,
+                y: 0,
+                item: null
+            })
+            const isMovingItem = ref(false)
+            const itemToMove = ref(null)
+            const moveTargetPath = ref('')
+            const allFolders = ref([])
+            const isRenamingItem = ref(false)
+            const itemToRename = ref(null)
+            const newItemName = ref('')
+            const showDonationPopup = ref(false)
 
-                    // 上传进度相关
-                    const uploading = ref(false)
-                    const uploadProgress = ref(0)
-                    const uploadStatus = ref('')
-                    const isDeletingItem = ref(false)
-                    const itemToDelete = ref(null)
+            // 上传进度相关
+            const uploading = ref(false)
+            const uploadProgress = ref(0)
+            const uploadStatus = ref('')
+            const isDeletingItem = ref(false)
+            const itemToDelete = ref(null)
 
-                    // Toast 错误提示
-                    const toastMsg = ref('')
-                    const toastVisible = ref(false)
-                    const toastType = ref('error') // 'success' | 'error'
+            // Toast 错误提示
+            const toastMsg = ref('')
+            const toastVisible = ref(false)
+            const toastType = ref('error') // 'success' | 'error'
 
-                    const showToast = (msg, type = 'error') => {
-                        toastMsg.value = typeof msg === 'string' ? msg : msg?.message || '发生未知错误'
-                        toastType.value = type
+            const showToast = (msg, type = 'error') => {
+                toastMsg.value = typeof msg === 'string' ? msg : msg?.message || '发生未知错误'
+                toastType.value = type
+                toastVisible.value = false
+                setTimeout(() => {
+                    toastVisible.value = true
+                    setTimeout(() => {
                         toastVisible.value = false
-                        setTimeout(() => {
-                            toastVisible.value = true
-                            setTimeout(() => {
-                                toastVisible.value = false
-                            }, 2500)
-                        }, 10)
+                    }, 2500)
+                }, 10)
+            }
+
+            // 拖放上传相关
+            const dragOver = ref(false)
+            let dragCounter = 0
+            const onDragOver = e => {
+                e.preventDefault()
+                dragCounter++
+                dragOver.value = true
+            }
+            const onDragLeave = e => {
+                e.preventDefault()
+                dragCounter--
+                if (dragCounter <= 0) {
+                    dragOver.value = false
+                    dragCounter = 0
+                }
+            }
+            const onDrop = e => {
+                e.preventDefault()
+                dragCounter = 0
+                dragOver.value = false
+                const files = e.dataTransfer.files
+                if (files && files.length > 0) {
+                    // 直接批量上传，复用 handleFileUpload 逻辑
+                    const fakeEvent = { target: { files } }
+                    handleFileUpload(fakeEvent, true)
+                }
+            }
+
+            const isWriteable = computed(() => {
+                if (!currentPath.value) return false
+                const depth = currentPath.value.split('/').filter(p => p).length
+                return depth >= 5
+            })
+
+            // 统一fetch封装
+            const safeFetch = async (url, { method = 'POST', headers = {}, body = undefined, isJson = true } = {}) => {
+                try {
+                    const defaultHeaders = method === 'POST' ? { 'Content-Type': 'application/x-www-form-urlencoded', ...headers } : headers
+                    const res = await fetch(url, { method, headers: defaultHeaders, body })
+                    return isJson ? await res.json() : await res.text()
+                } catch (e) {
+                    showToast('网络请求异常：' + (e?.message || e))
+                    throw e
+                }
+            }
+
+            const loadPath = async path => {
+                try {
+                    const formData = new URLSearchParams()
+                    formData.append('path', path)
+                    const result = await safeFetch('/api/ls', { body: formData.toString() })
+                    if (result.code === 200 && Array.isArray(result.data)) {
+                        items.value = result.data
+                        allFolders.value = items.value.filter(item => item.isFolder)
+                    } else {
+                        showToast('加载目录失败：' + (result?.message || result))
+                        items.value = []
+                        allFolders.value = []
                     }
+                } catch (e) {
+                    items.value = []
+                    allFolders.value = []
+                }
+            }
 
-                    // 拖放上传相关
-                    const dragOver = ref(false)
-                    let dragCounter = 0
-                    const onDragOver = e => {
-                        e.preventDefault()
-                        dragCounter++
-                        dragOver.value = true
+            const loadShortcuts = async () => {
+                const formData = new URLSearchParams()
+                formData.append('path', '/')
+                const result = await safeFetch('/api/ls', { body: formData.toString() })
+                if (result.code === 200 && Array.isArray(result.data)) {
+                    shortcuts.value = result.data.filter(item => item.isFolder)
+                } else {
+                    showToast('加载快捷目录失败：' + (result?.message || result))
+                    shortcuts.value = []
+                }
+                navigateToRoot()
+            }
+
+            const navigateToRoot = () => {
+                if (shortcuts.value.length > 0) {
+                    navigateToPath(shortcuts.value[0].path)
+                } else {
+                    currentPath.value = '/' + 'data'
+                    selectedItem.value = null
+                    isPreviewing.value = false
+                    loadPath(currentPath.value)
+                }
+            }
+
+            const loadAppInfo = async () => {
+                const result = await safeFetch('/api/app-info')
+                if (result.code === 200) {
+                    appInfo.value = result.data
+                }
+            }
+
+            // 普通变量替代 computed，手动刷新
+            let filteredItems = ref([])
+
+            const updateFilteredItems = () => {
+                const matchPath = currentPath.value.toLowerCase()
+                const matchDepth = currentPath.value.split('/').filter(Boolean).length + 1
+
+                let result = items.value.filter(item => {
+                    if (!item.path) return false
+                    const itemPath = item.path.toLowerCase()
+                    const itemDepth = itemPath.split('/').filter(Boolean).length
+                    return itemPath.startsWith(matchPath) && itemDepth === matchDepth
+                })
+
+                if (searchQuery.value.trim()) {
+                    const query = searchQuery.value.toLowerCase()
+                    result = result.filter(item => item.name.toLowerCase().includes(query))
+                }
+
+                // 排序功能
+                result = result.slice().sort((a, b) => {
+                    let valA, valB
+                    if (sortField.value === 'size') {
+                        valA = a.size || 0
+                        valB = b.size || 0
+                    } else if (sortField.value === 'modified') {
+                        valA = a.modified || 0
+                    } else {
+                        valA = (a.name || '').toLowerCase()
+                        valB = (b.name || '').toLowerCase()
                     }
-                    const onDragLeave = e => {
-                        e.preventDefault()
-                        dragCounter--
-                        if (dragCounter <= 0) {
-                            dragOver.value = false
-                            dragCounter = 0
-                        }
-                    }
-                    const onDrop = e => {
-                        e.preventDefault()
-                        dragCounter = 0
-                        dragOver.value = false
-                        const files = e.dataTransfer.files
-                        if (files && files.length > 0) {
-                            // 直接批量上传，复用 handleFileUpload 逻辑
-                            const fakeEvent = { target: { files } }
-                            handleFileUpload(fakeEvent, true)
-                        }
-                    }
+                    if (valA < valB) return sortDirection.value === 'asc' ? -1 : 1
+                    if (valA > valB) return sortDirection.value === 'asc' ? 1 : -1
+                    return 0
+                })
 
-                    const isWriteable = computed(() => {
-                        if (!currentPath.value) return false
-                        const depth = currentPath.value.split('/').filter(p => p).length
-                        return depth >= 5
-                    })
+                filteredItems.value = result
+            }
 
-                    // 统一fetch封装
-                    const safeFetch = async (url, { method = 'POST', headers = {}, body = undefined, isJson = true } = {}) => {
-                        try {
-                            const defaultHeaders = method === 'POST' ? { 'Content-Type': 'application/x-www-form-urlencoded', ...headers } : headers
-                            const res = await fetch(url, { method, headers: defaultHeaders, body })
-                            return isJson ? await res.json() : await res.text()
-                        } catch (e) {
-                            showToast('网络请求异常：' + (e?.message || e))
-                            throw e
-                        }
-                    }
+            // 监听依赖项变化，手动刷新
+            watch([items, currentPath, searchQuery, sortField, sortDirection], updateFilteredItems, { immediate: true })
 
-                    const loadPath = async path => {
-                        try {
-                            const formData = new URLSearchParams()
-                            formData.append('path', path)
-                            const result = await safeFetch('/api/ls', { body: formData.toString() })
-                            if (result.code === 200 && Array.isArray(result.data)) {
-                                items.value = result.data
-                                allFolders.value = items.value.filter(item => item.isFolder)
-                            } else {
-                                showToast('加载目录失败：' + (result?.message || result))
-                                items.value = []
-                                allFolders.value = []
-                            }
-                        } catch (e) {
-                            items.value = []
-                            allFolders.value = []
-                        }
-                    }
+            const pathParts = computed(() => {
+                return currentPath.value.split('/').filter(part => part.trim() !== '')
+            })
 
-                    const loadShortcuts = async () => {
-                        const formData = new URLSearchParams()
-                        formData.append('path', '/')
-                        const result = await safeFetch('/api/ls', { body: formData.toString() })
-                        if (result.code === 200 && Array.isArray(result.data)) {
-                            shortcuts.value = result.data.filter(item => item.isFolder)
-                        } else {
-                            showToast('加载快捷目录失败：' + (result?.message || result))
-                            shortcuts.value = []
-                        }
-                        navigateToRoot()
-                    }
+            // 刷新当前目录
+            const isRefreshing = ref(false)
+            const refreshCurrentPath = async () => {
+                if (isRefreshing.value) return
+                isRefreshing.value = true
+                try {
+                    await loadPath(currentPath.value)
+                } finally {
+                    setTimeout(() => {
+                        isRefreshing.value = false
+                    }, 100)
+                }
+            }
+            const selectItem = item => {
+                selectedItem.value = item
+                isPreviewing.value = false
+            }
+            const isRootPath = path => {
+                // 允许根目录和快捷目录都不可返回
+                return !path || path === '/' || path === '/' + 'data'
+            }
 
-                    const navigateToRoot = () => {
-                        if (shortcuts.value.length > 0) {
-                            navigateToPath(shortcuts.value[0].path)
-                        } else {
-                            currentPath.value = '/' + 'data'
-                            selectedItem.value = null
-                            isPreviewing.value = false
-                            loadPath(currentPath.value)
-                        }
-                    }
+            const navigateToPath = path => {
+                currentPath.value = path
+                selectedItem.value = null
+                isPreviewing.value = false
+                loadPath(currentPath.value)
+            }
 
-                    const loadAppInfo = async () => {
-                        const result = await safeFetch('/api/app-info')
-                        if (result.code === 200) {
-                            appInfo.value = result.data
-                        }
-                    }
+            const enterFolder = folderName => {
+                currentPath.value = `${currentPath.value}/${folderName}`.replace(/\/\/+/g, '/').replace(/\/\/$/, '')
+                selectedItem.value = null
+                isPreviewing.value = false
+                loadPath(currentPath.value)
+            }
 
-                    // 普通变量替代 computed，手动刷新
-                    let filteredItems = ref([])
+            const navigateTo = index => {
+                const parts = pathParts.value.slice(0, index + 1)
+                const newPath = '/' + parts.join('/')
+                currentPath.value = newPath
+                selectedItem.value = null
+                isPreviewing.value = false
+                loadPath(currentPath.value)
+            }
 
-                    const updateFilteredItems = () => {
-                        const matchPath = currentPath.value.toLowerCase()
-                        const matchDepth = currentPath.value.split('/').filter(Boolean).length + 1
+            // 返回上一级目录
+            const goUpLevel = () => {
+                if (isRootPath(currentPath.value)) return
+                const parts = currentPath.value.split('/').filter(Boolean)
+                if (parts.length === 0) return
+                parts.pop()
+                const newPath = '/' + parts.join('/')
+                currentPath.value = newPath
+                selectedItem.value = null
+                isPreviewing.value = false
+                loadPath(currentPath.value)
+            }
 
-                        let result = items.value.filter(item => {
-                            if (!item.path) return false
-                            const itemPath = item.path.toLowerCase()
-                            const itemDepth = itemPath.split('/').filter(Boolean).length
-                            return itemPath.startsWith(matchPath) && itemDepth === matchDepth
-                        })
+            const toggleViewMode = () => {
+                viewMode.value = viewMode.value === 'grid' ? 'list' : 'grid'
+            }
 
-                        if (searchQuery.value.trim()) {
-                            const query = searchQuery.value.toLowerCase()
-                            result = result.filter(item => item.name.toLowerCase().includes(query))
-                        }
+            const sortBy = field => {
+                if (sortField.value === field) {
+                    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+                } else {
+                    sortField.value = field
+                    sortDirection.value = 'asc'
+                }
+            }
 
-                        // 排序功能
-                        result = result.slice().sort((a, b) => {
-                            let valA, valB
-                            if (sortField.value === 'size') {
-                                valA = a.size || 0
-                                valB = b.size || 0
-                            } else if (sortField.value === 'modified') {
-                                valA = a.modified || 0
-                            } else {
-                                valA = (a.name || '').toLowerCase()
-                                valB = (b.name || '').toLowerCase()
-                            }
-                            if (valA < valB) return sortDirection.value === 'asc' ? -1 : 1
-                            if (valA > valB) return sortDirection.value === 'asc' ? 1 : -1
-                            return 0
-                        })
+            const sortIcon = field => {
+                if (sortField.value !== field) return 'fa-sort'
+                return sortDirection.value === 'asc' ? 'fa-sort-up' : 'fa-sort-down'
+            }
 
-                        filteredItems.value = result
-                    }
+            const formatFileSize = bytes => {
+                if (bytes === 0) return '0 Bytes'
 
-                    // 监听依赖项变化，手动刷新
-                    watch([items, currentPath, searchQuery, sortField, sortDirection], updateFilteredItems, { immediate: true })
+                const k = 1024
+                const sizes = ['Bytes', 'KB', 'MB', 'GB']
+                const i = Math.floor(Math.log(bytes) / Math.log(k))
 
-                    const pathParts = computed(() => {
-                        return currentPath.value.split('/').filter(part => part.trim() !== '')
-                    })
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+            }
 
-                    // 刷新当前目录
-                    const isRefreshing = ref(false)
-                    const refreshCurrentPath = async () => {
-                        if (isRefreshing.value) return
-                        isRefreshing.value = true
-                        try {
-                            await loadPath(currentPath.value)
-                        } finally {
-                            setTimeout(() => {
-                                isRefreshing.value = false
-                            }, 100)
-                        }
-                    }
-                    const selectItem = item => {
-                        selectedItem.value = item
-                        isPreviewing.value = false
-                    }
-                    const isRootPath = path => {
-                        // 允许根目录和快捷目录都不可返回
-                        return !path || path === '/' || path === '/' + 'data'
-                    }
+            const formatDate = timestmp => {
+                if (!timestmp) return '-'
+                const date = new Date(timestmp * 1000)
+                return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+            }
 
-                    const navigateToPath = path => {
-                        currentPath.value = path
-                        selectedItem.value = null
-                        isPreviewing.value = false
-                        loadPath(currentPath.value)
-                    }
+            const getFileIcon = item => {
+                if (item.isFolder) return 'fas fa-folder text-yellow-500'
 
-                    const enterFolder = folderName => {
-                        currentPath.value = `${currentPath.value}/${folderName}`.replace(/\/\/+/g, '/').replace(/\/\/$/, '')
-                        selectedItem.value = null
-                        isPreviewing.value = false
-                        loadPath(currentPath.value)
-                    }
+                const fileIcons = {
+                    pdf: 'fas fa-file-pdf text-red-500',
+                    doc: 'fas fa-file-word text-blue-500',
+                    docx: 'fas fa-file-word text-blue-500',
+                    xls: 'fas fa-file-excel text-green-500',
+                    xlsx: 'fas fa-file-excel text-green-500',
+                    ppt: 'fas fa-file-powerpoint text-orange-500',
+                    pptx: 'fas fa-file-powerpoint text-orange-500',
+                    zip: 'fas fa-file-zipper text-yellow-500',
+                    rar: 'fas fa-file-zipper text-yellow-500',
+                    txt: 'fas fa-file-lines text-gray-500',
 
-                    const navigateTo = index => {
-                        const parts = pathParts.value.slice(0, index + 1)
-                        const newPath = '/' + parts.join('/')
-                        currentPath.value = newPath
-                        selectedItem.value = null
-                        isPreviewing.value = false
-                        loadPath(currentPath.value)
-                    }
+                    json: 'fas fa-file-code text-yellow-500',
+                    json5: 'fas fa-file-code text-yellow-500',
+                    plist: 'fas fa-file-code text-yellow-500',
+                    js: 'fas fa-file-code text-yellow-400',
+                    css: 'fas fa-file-code text-blue-500',
+                    html: 'fas fa-file-code text-orange-500',
+                    py: 'fas fa-file-code text-blue-400',
+                    ets: 'fas fa-file-code text-purple-500',
 
-                    // 返回上一级目录
-                    const goUpLevel = () => {
-                        if (isRootPath(currentPath.value)) return
-                        const parts = currentPath.value.split('/').filter(Boolean)
-                        if (parts.length === 0) return
-                        parts.pop()
-                        const newPath = '/' + parts.join('/')
-                        currentPath.value = newPath
-                        selectedItem.value = null
-                        isPreviewing.value = false
-                        loadPath(currentPath.value)
-                    }
+                    jpg: 'fas fa-file-image text-green-500',
+                    jpeg: 'fas fa-file-image text-green-500',
+                    png: 'fas fa-file-image text-blue-500',
+                    gif: 'fas fa-file-image text-purple-500',
+                    webp: 'fas fa-file-image text-blue-500',
+                    svg: 'fas fa-file-image text-blue-500',
 
-                    const toggleViewMode = () => {
-                        viewMode.value = viewMode.value === 'grid' ? 'list' : 'grid'
-                    }
+                    mp4: 'fas fa-file-video text-red-500',
+                    mov: 'fas fa-file-video text-red-500',
+                    avi: 'fas fa-file-video text-red-500',
 
-                    const sortBy = field => {
-                        if (sortField.value === field) {
-                            sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
-                        } else {
-                            sortField.value = field
-                            sortDirection.value = 'asc'
-                        }
-                    }
+                    db: 'fas fa-database text-yellow-500',
+                    sqlite: 'fas fa-database text-yellow-500',
 
-                    const sortIcon = field => {
-                        if (sortField.value !== field) return 'fa-sort'
-                        return sortDirection.value === 'asc' ? 'fa-sort-up' : 'fa-sort-down'
-                    }
+                    mp3: 'fas fa-file-audio text-purple-500',
+                    wav: 'fas fa-file-audio text-purple-500',
+                    flac: 'fas fa-file-audio text-purple-500',
+                    m4a: 'fas fa-file-audio text-purple-500',
+                    aac: 'fas fa-file-audio text-purple-500'
+                }
 
-                    const formatFileSize = bytes => {
-                        if (bytes === 0) return '0 Bytes'
+                return fileIcons[item.ext] || 'fas fa-file text-gray-500'
+            }
 
-                        const k = 1024
-                        const sizes = ['Bytes', 'KB', 'MB', 'GB']
-                        const i = Math.floor(Math.log(bytes) / Math.log(k))
+            // 统一后端type判断，支持文本/媒体/其他
+            const previewType = ref('') // text/media/sqlite/other
+            const previewUrl = ref('')
+            const previewMediaKind = ref('') // image/video/audio
+            // sqlite相关响应式变量已在上方声明，这里不重复声明
+            const sqliteError = ref('')
 
-                        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-                    }
-
-                    const formatDate = timestmp => {
-                        if (!timestmp) return '-'
-                        const date = new Date(timestmp * 1000)
-                        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
-                    }
-
-                    const getFileIcon = item => {
-                        if (item.isFolder) return 'fas fa-folder text-yellow-500'
-
-                        const fileIcons = {
-                            pdf: 'fas fa-file-pdf text-red-500',
-                            doc: 'fas fa-file-word text-blue-500',
-                            docx: 'fas fa-file-word text-blue-500',
-                            xls: 'fas fa-file-excel text-green-500',
-                            xlsx: 'fas fa-file-excel text-green-500',
-                            ppt: 'fas fa-file-powerpoint text-orange-500',
-                            pptx: 'fas fa-file-powerpoint text-orange-500',
-                            zip: 'fas fa-file-zipper text-yellow-500',
-                            rar: 'fas fa-file-zipper text-yellow-500',
-                            txt: 'fas fa-file-lines text-gray-500',
-
-                            json: 'fas fa-file-code text-yellow-500',
-                            json5: 'fas fa-file-code text-yellow-500',
-                            plist: 'fas fa-file-code text-yellow-500',
-                            js: 'fas fa-file-code text-yellow-400',
-                            css: 'fas fa-file-code text-blue-500',
-                            html: 'fas fa-file-code text-orange-500',
-                            py: 'fas fa-file-code text-blue-400',
-                            ets: 'fas fa-file-code text-purple-500',
-
-                            jpg: 'fas fa-file-image text-green-500',
-                            jpeg: 'fas fa-file-image text-green-500',
-                            png: 'fas fa-file-image text-blue-500',
-                            gif: 'fas fa-file-image text-purple-500',
-                            webp: 'fas fa-file-image text-blue-500',
-                            svg: 'fas fa-file-image text-blue-500',
-
-                            mp4: 'fas fa-file-video text-red-500',
-                            mov: 'fas fa-file-video text-red-500',
-                            avi: 'fas fa-file-video text-red-500',
-
-                            db: 'fas fa-database text-yellow-500',
-                            sqlite: 'fas fa-database text-yellow-500',
-
-                            mp3: 'fas fa-file-audio text-purple-500',
-                            wav: 'fas fa-file-audio text-purple-500',
-                            flac: 'fas fa-file-audio text-purple-500',
-                            m4a: 'fas fa-file-audio text-purple-500',
-                            aac: 'fas fa-file-audio text-purple-500'
-                        }
-
-                        return fileIcons[item.ext] || 'fas fa-file text-gray-500'
-                    }
-
-                    // 统一后端type判断，支持文本/媒体/其他
-                    const previewType = ref('') // text/media/sqlite/other
-                    const previewUrl = ref('')
-                    const previewMediaKind = ref('') // image/video/audio
-                    // sqlite相关响应式变量已在上方声明，这里不重复声明
-                    const sqliteError = ref('')
-
-                    const previewFile = async item => {
-                        selectedItem.value = item
-                        isPreviewing.value = true
-                        fileContent.value = ''
-                        previewType.value = ''
-                        previewUrl.value = ''
-                        previewMediaKind.value = ''
-                        sqliteTables.value = []
-                        sqliteColumns.value = []
-                        sqliteData.value = []
-                        currentSQLiteTable.value = ''
-                        sqliteError.value = ''
-                        try {
-                            const formData = new URLSearchParams()
-                            formData.append('path', item.path)
-                            const body = formData.toString()
-                            const result = await safeFetch('/api/read', { body: body })
-                            if (result.code === 200 && result.data) {
-                                const data = result.data
-                                if (data.type === 'text') {
-                                    previewType.value = 'text'
-                                    fileContent.value = data.content
-                                } else if (data.type === 'media') {
-                                    previewType.value = 'media'
-                                    previewUrl.value = data.url
-                                    previewMediaKind.value = data.mediaKind || ''
-                                } else if (data.type === 'sqlite') {
-                                    previewType.value = 'sqlite'
-                                    // 懒加载 sql.js
-                                    try {
-                                        await window._loadSqlJs()
-                                        if (!window._SQL) throw new Error('sql.js 加载失败')
-                                        const arrayBuffer = await fetch(data.url).then(r => r.arrayBuffer())
-                                        const db = new window._SQL.Database(new Uint8Array(arrayBuffer))
-                                        window._lastSqliteDb = db // 缓存db对象供切表用
-                                        const tablesRes = db.exec("SELECT name FROM sqlite_master WHERE type='table'")
-                                        const tables = tablesRes[0]?.values.map(row => row[0]) || []
-                                        sqliteTables.value = tables
-                                        if (tables.length > 0) {
-                                            showSQLiteTable(tables[0])
-                                        }
-                                    } catch (err) {
-                                        sqliteError.value = '解析数据库失败: ' + (err.message || err)
-                                    }
-                                } else if (data.type === 'other') {
-                                    previewType.value = 'other'
-                                    previewUrl.value = data.url
-                                } else {
-                                    previewType.value = ''
-                                    fileContent.value = '不支持的文件类型'
-                                }
-                            } else {
-                                showToast('文件预览失败：' + (result?.message || '未知错误'))
-                                fileContent.value = 'Error loading file content.'
-                            }
-                        } catch (e) {
-                            fileContent.value = 'Error loading file content.'
-                        }
-                    }
-
-                    // sqlite表切换
-                    const showSQLiteTable = tableName => {
-                        try {
-                            const db = window._lastSqliteDb
-                            if (!db) return
-                            const res = db.exec(`SELECT * FROM "${tableName}" LIMIT 100`)
-                            if (res.length > 0) {
-                                sqliteColumns.value = res[0].columns
-                                sqliteData.value = res[0].values.map(rowArr => {
-                                    const rowObj = {}
-                                    res[0].columns.forEach((col, idx) => {
-                                        rowObj[col] = rowArr[idx]
-                                    })
-                                    rowObj.__rowid = Math.random().toString(36).slice(2)
-                                    return rowObj
-                                })
-                            } else {
-                                sqliteColumns.value = []
-                                sqliteData.value = []
-                            }
-                            currentSQLiteTable.value = tableName
-                        } catch (e) {
-                            sqliteError.value = '读取表失败: ' + (e.message || e)
-                        }
-                    }
-
-                    const toggleFullscreen = () => {
-                        isPreviewFullscreen.value = !isPreviewFullscreen.value
-                    }
-
-                    const downloadFile = async () => {
-                        if (!selectedItem.value) return
-                        const formData = new URLSearchParams()
-                        formData.append('path', selectedItem.value.path)
-                        const result = await safeFetch('/api/read', { body: formData.toString() })
-                        if (result.code !== 200) {
-                            showToast('文件下载失败：' + (result?.message || '未知错误'))
-                            return
-                        }
+            const previewFile = async item => {
+                selectedItem.value = item
+                isPreviewing.value = true
+                fileContent.value = ''
+                previewType.value = ''
+                previewUrl.value = ''
+                previewMediaKind.value = ''
+                sqliteTables.value = []
+                sqliteColumns.value = []
+                sqliteData.value = []
+                currentSQLiteTable.value = ''
+                sqliteError.value = ''
+                try {
+                    const formData = new URLSearchParams()
+                    formData.append('path', item.path)
+                    const body = formData.toString()
+                    const result = await safeFetch('/api/read', { body: body })
+                    if (result.code === 200 && result.data) {
                         const data = result.data
                         if (data.type === 'text') {
-                            // fallback: 纯文本等类型，仍用 Blob 下载
-                            const content = data.content
-                            const blob = new Blob([content])
-                            const link = document.createElement('a')
-                            link.href = URL.createObjectURL(blob)
-                            link.download = selectedItem.value.name
-                            document.body.appendChild(link)
-                            link.click()
-                            document.body.removeChild(link)
+                            previewType.value = 'text'
+                            fileContent.value = data.content
+                        } else if (data.type === 'media') {
+                            previewType.value = 'media'
+                            previewUrl.value = data.url
+                            previewMediaKind.value = data.mediaKind || ''
+                        } else if (data.type === 'sqlite') {
+                            previewType.value = 'sqlite'
+                            // 懒加载 sql.js
+                            try {
+                                await window._loadSqlJs()
+                                if (!window._SQL) throw new Error('sql.js 加载失败')
+                                const arrayBuffer = await fetch(data.url).then(r => r.arrayBuffer())
+                                const db = new window._SQL.Database(new Uint8Array(arrayBuffer))
+                                window._lastSqliteDb = db // 缓存db对象供切表用
+                                const tablesRes = db.exec("SELECT name FROM sqlite_master WHERE type='table'")
+                                const tables = tablesRes[0]?.values.map(row => row[0]) || []
+                                sqliteTables.value = tables
+                                if (tables.length > 0) {
+                                    showSQLiteTable(tables[0])
+                                }
+                            } catch (err) {
+                                sqliteError.value = '解析数据库失败: ' + (err.message || err)
+                            }
+                        } else if (data.type === 'other') {
+                            previewType.value = 'other'
+                            previewUrl.value = data.url
                         } else {
-                            // 优先使用后端返回的 url 字段（静态直链下载）
-                            const url = data.url
-                            if (url) {
-                                const link = document.createElement('a')
-                                link.href = url
-                                link.download = selectedItem.value.name
-                                link.target = '_blank'
-                                document.body.appendChild(link)
-                                link.click()
-                                document.body.removeChild(link)
-                                return
-                            }
+                            previewType.value = ''
+                            fileContent.value = '不支持的文件类型'
                         }
+                    } else {
+                        showToast('文件预览失败：' + (result?.message || '未知错误'))
+                        fileContent.value = 'Error loading file content.'
                     }
-
-                    const createNewFolder = () => {
-                        newFolderName.value = ''
-                        isCreatingFolder.value = true
-                    }
-
-                    const confirmCreateFolder = () => {
-                        const name = newFolderName.value.trim()
-                        if (!name) return
-                        const path = (currentPath.value + '/' + name).replace(/\/+/g, '/').replace(/\/\$/, '')
-                        const formData = new URLSearchParams()
-                        formData.append('path', path)
-                        safeFetch('/api/mkdir', { body: formData.toString() })
-                            .then(result => {
-                                if (result.code === 200) {
-                                    showToast('新建成功', 'success')
-                                    loadPath(currentPath.value)
-                                    isCreatingFolder.value = false
-                                } else {
-                                    showToast('新建文件夹失败：' + (result?.message || result))
-                                }
-                            })
-                            .catch(e => {
-                                showToast('新建文件夹失败：' + (e?.message || e))
-                            })
-                    }
-
-                    const uploadFile = () => {
-                        fileInput.value.click()
-                    }
-
-                    const CHUNK_SIZE = 2 * 1024 * 1024 // 2MB
-                    const handleFileUpload = async event => {
-                        const files = event.target.files
-                        if (!files || files.length === 0) return
-
-                        // 大于512KB的文件才显示上传进度
-                        let needProgress = false
-                        for (let i = 0; i < files.length; i++) {
-                            if (files[i].size > 0.5 * 1024 * 1024) {
-                                needProgress = true
-                                break
-                            }
-                        }
-
-                        let totalSize = 0
-                        let uploadedSize = 0
-                        if (needProgress) {
-                            uploading.value = true
-                            uploadProgress.value = 0
-                            uploadStatus.value = ''
-                            for (let i = 0; i < files.length; i++) {
-                                totalSize += files[i].size
-                            }
-                        }
-
-                        let allSuccess = true
-                        let failedFiles = []
-                        for (let i = 0; i < files.length; i++) {
-                            const file = files[i]
-                            const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
-                            if (needProgress) uploadStatus.value = `正在上传：${file.name}`
-                            for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-                                const start = chunkIndex * CHUNK_SIZE
-                                const end = Math.min(file.size, start + CHUNK_SIZE)
-                                const chunk = file.slice(start, end)
-
-                                const formData = new FormData()
-                                formData.append('file', chunk)
-                                formData.append('filename', file.name)
-                                formData.append('path', currentPath.value)
-                                formData.append('chunkIndex', chunkIndex)
-                                formData.append('totalChunks', totalChunks)
-                                formData.append('isFirst', chunkIndex === 0 ? '1' : '0')
-                                formData.append('isLast', chunkIndex === totalChunks - 1 ? '1' : '0')
-
-                                try {
-                                    const res = await fetch('/api/upload', {
-                                        method: 'POST',
-                                        body: formData
-                                    })
-                                    if (!res.ok) throw new Error(`Failed to upload chunk ${chunkIndex + 1}/${totalChunks} of ${file.name}`)
-                                } catch (e) {
-                                    allSuccess = false
-                                    failedFiles.push(file.name)
-                                    showToast(`上传失败：${file.name} - ${e?.message || e}`, 'error')
-                                    if (needProgress) {
-                                        uploading.value = false
-                                        uploadStatus.value = '上传失败'
-                                    }
-                                    // 拖放上传无 input，需判断
-                                    if (event.target && event.target.value !== undefined) event.target.value = ''
-                                    break
-                                }
-                                // 更新进度
-                                if (needProgress) {
-                                    uploadedSize += chunk.size
-                                    let percent = Math.floor((uploadedSize / totalSize) * 100)
-                                    if (percent > 100) percent = 100
-                                    uploadProgress.value = percent
-                                }
-                            }
-                        }
-
-                        if (needProgress) {
-                            uploadStatus.value = '上传完成'
-                            uploadProgress.value = 100
-                            setTimeout(() => {
-                                uploading.value = false
-                            }, 800)
-                        }
-
-                        // 刷新文件列表
-                        await loadPath(currentPath.value)
-                        // 拖放上传无 input，需判断
-                        if (event.target && event.target.value !== undefined) event.target.value = ''
-
-                        // 成功/失败 toast
-                        if (allSuccess) {
-                            showToast('上传成功', 'success')
-                        } else if (failedFiles.length < files.length) {
-                            showToast('部分文件上传失败', 'error')
-                        }
-                    }
-
-                    const copyPath = async () => {
-                        const text = selectedItem.value ? selectedItem.value.path : currentPath.value
-                        const textarea = document.createElement('textarea')
-                        textarea.value = text
-                        document.body.appendChild(textarea)
-                        textarea.select()
-                        try {
-                            document.execCommand('copy')
-                            showToast('复制路径成功', 'success')
-                        } catch (err) {
-                            showToast(err?.message || '复制失败', 'error')
-                        }
-                        document.body.removeChild(textarea)
-                    }
-
-                    const renameItem = item => {
-                        itemToRename.value = item || selectedItem.value
-                        if (!itemToRename.value) return
-                        newItemName.value = itemToRename.value.name
-                        isRenamingItem.value = true
-                    }
-
-                    // 项目重命名功能
-                    const confirmRename = async () => {
-                        if (!itemToRename.value || !newItemName.value.trim() || newItemName.value.trim() === itemToRename.value.name) {
-                            isRenamingItem.value = false
-                            return
-                        }
-
-                        const oldPath = itemToRename.value.path
-                        const newPath = oldPath.substring(0, oldPath.lastIndexOf('/') + 1) + newItemName.value.trim()
-
-                        try {
-                            const formData = new URLSearchParams()
-                            formData.append('src', oldPath)
-                            formData.append('dest', newPath)
-                            formData.append('rename', 'true') // 标记为重命名操作
-                            const result = await safeFetch('/api/mv', { body: formData.toString() })
-                            if (result.code !== 200) {
-                                showToast('重命名失败：' + (result?.message || result))
-                            } else {
-                                showToast('重命名成功', 'success')
-                                await loadPath(currentPath.value)
-                            }
-                        } catch (e) {}
-
-                        isRenamingItem.value = false
-                        itemToRename.value = null
-                        newItemName.value = ''
-                    }
-
-                    // 删除文件/文件夹，弹出确认框
-                    const deleteItem = item => {
-                        itemToDelete.value = item || selectedItem.value
-                        if (!itemToDelete.value) return
-                        isDeletingItem.value = true
-                    }
-
-                    // 确认删除
-                    const confirmDelete = async () => {
-                        if (!itemToDelete.value) {
-                            isDeletingItem.value = false
-                            return
-                        }
-
-                        try {
-                            const formData = new URLSearchParams()
-                            formData.append('path', itemToDelete.value.path)
-                            const result = await safeFetch('/api/rm', { body: formData.toString() })
-                            if (result.code !== 200) {
-                                showToast('删除失败：' + (result?.message || result))
-                            } else {
-                                showToast('删除成功', 'success')
-                                await loadPath(currentPath.value)
-                                if (selectedItem.value && selectedItem.value.path === itemToDelete.value.path) {
-                                    selectedItem.value = null
-                                    isPreviewing.value = false
-                                }
-                            }
-                        } catch (e) {
-                        } finally {
-                            isDeletingItem.value = false
-                            itemToDelete.value = null
-                        }
-                    }
-
-                    const showContextMenu = (event, item) => {
-                        const isFile = !item.isFolder
-                        const isWriteableFolder = item.isFolder && isWriteable.value
-
-                        if (!isFile && !isWriteableFolder) {
-                            const downloadAllowed = !item.isFolder
-                            if (!downloadAllowed) return
-                        }
-
-                        contextMenu.value = {
-                            visible: true,
-                            x: event.clientX,
-                            y: event.clientY,
-                            item: item
-                        }
-                        // 先移除旧监听，避免重复
-                        document.removeEventListener('click', closeContextMenu)
-                        setTimeout(() => {
-                            document.addEventListener('click', closeContextMenu)
-                        }, 0)
-                    }
-                    const closeContextMenu = () => {
-                        contextMenu.value.visible = false
-                        document.removeEventListener('click', closeContextMenu)
-                    }
-
-                    const downloadItem = item => {
-                        selectItem(item)
-                        downloadFile()
-                    }
-
-                    const initiateRename = item => {
-                        renameItem(item)
-                    }
-
-                    const showMoveDialog = item => {
-                        itemToMove.value = item
-                        moveTargetPath.value = ''
-                        isMovingItem.value = true
-                    }
-
-                    const confirmMoveItem = () => {
-                        if (!itemToMove.value || !moveTargetPath.value) return
-
-                        const oldPath = itemToMove.value.path
-                        const newPath = moveTargetPath.value + '/' + itemToMove.value.name
-
-                        itemToMove.value.path = newPath
-                        itemToMove.value.modified = new Date().toISOString()
-
-                        if (itemToMove.value.isFolder) {
-                            const oldFolderPath = oldPath
-                            const newFolderPath = newPath
-
-                            items.value.forEach(item => {
-                                if (item.path.startsWith(oldFolderPath + '/')) {
-                                    item.path = newFolderPath + item.path.substring(oldFolderPath.length)
-                                }
-                            })
-
-                            allFolders.value = items.value.filter(item => item.isFolder)
-                        }
-
-                        isMovingItem.value = false
-                    }
-
-                    const fileInput = ref(null)
-
-                    onMounted(() => {
-                        loadShortcuts()
-                        loadAppInfo()
-                        document.addEventListener('keydown', e => {
-                            if (e.key === 'Escape' && contextMenu.value.visible) {
-                                contextMenu.value.visible = false
-                            }
-                        })
-                    })
-
-                    return {
-                        showToast,
-                        toastVisible,
-                        toastMsg,
-                        toastType,
-                        // State
-                        items,
-                        selectedItem,
-                        currentPath,
-                        shortcuts,
-                        appInfo,
-                        viewMode,
-                        isPreviewing,
-                        isPreviewFullscreen,
-                        fileContent,
-                        searchQuery,
-                        newFolderName,
-                        isCreatingFolder,
-                        showSidebar,
-                        sqliteTables,
-                        sqliteColumns,
-                        sqliteData,
-                        currentSQLiteTable,
-                        contextMenu,
-                        isMovingItem,
-                        itemToMove,
-                        moveTargetPath,
-                        allFolders,
-                        fileInput,
-                        isRenamingItem,
-                        itemToRename,
-                        newItemName,
-                        showDonationPopup,
-                        isDeletingItem,
-                        itemToDelete,
-
-                        // 拖放上传
-                        dragOver,
-                        onDragOver,
-                        onDragLeave,
-                        onDrop,
-
-                        // Computed
-                        pathParts,
-                        filteredItems,
-                        previewType,
-                        previewUrl,
-                        previewMediaKind,
-                        sqliteTables,
-                        sqliteColumns,
-                        sqliteData,
-                        currentSQLiteTable,
-                        sqliteError,
-                        showSQLiteTable,
-                        isWriteable,
-
-                        // Methods
-                        navigateToPath,
-                        navigateToRoot,
-                        selectItem,
-                        enterFolder,
-                        navigateTo,
-                        toggleViewMode,
-                        sortBy,
-                        sortIcon,
-                        formatFileSize,
-                        formatDate,
-                        getFileIcon,
-                        previewFile,
-                        toggleFullscreen,
-                        downloadFile,
-                        createNewFolder,
-                        confirmCreateFolder,
-                        uploadFile,
-                        handleFileUpload,
-                        renameItem,
-                        confirmRename,
-                        deleteItem,
-                        confirmDelete,
-                        showContextMenu,
-                        downloadItem,
-                        initiateRename,
-                        showMoveDialog,
-                        confirmMoveItem,
-                        closeContextMenu,
-                        isRootPath,
-                        goUpLevel,
-                        // 上传进度
-                        uploading,
-                        uploadProgress,
-                        uploadStatus,
-
-                        refreshCurrentPath,
-                        isRefreshing,
-                        copyPath
-                    }
+                } catch (e) {
+                    fileContent.value = 'Error loading file content.'
                 }
-            }).mount('#app')
-        </script>
-    </body>
+            }
 
-    <!-- sqlite 预览懒加载，不在页面初始化时加载 sql.js -->
-    <script>
-        window._sqlJsReady = null
-        window._SQL = null
-        window._loadSqlJs = function () {
-            if (window._sqlJsReady) return window._sqlJsReady
-            // 动态插入 sql.js 脚本
-            window._sqlJsReady = new Promise((resolve, reject) => {
-                const script = document.createElement('script')
-                script.src = 'https://cdn.staticfile.net/sql.js/1.12.0/sql-wasm.min.js'
-                script.onload = () => {
-                    if (!window.initSqlJs) {
-                        reject(new Error('sql.js 加载失败'))
+            // sqlite表切换
+            const showSQLiteTable = tableName => {
+                try {
+                    const db = window._lastSqliteDb
+                    if (!db) return
+                    const res = db.exec(`SELECT * FROM "${tableName}" LIMIT 100`)
+                    if (res.length > 0) {
+                        sqliteColumns.value = res[0].columns
+                        sqliteData.value = res[0].values.map(rowArr => {
+                            const rowObj = {}
+                            res[0].columns.forEach((col, idx) => {
+                                rowObj[col] = rowArr[idx]
+                            })
+                            rowObj.__rowid = Math.random().toString(36).slice(2)
+                            return rowObj
+                        })
+                    } else {
+                        sqliteColumns.value = []
+                        sqliteData.value = []
+                    }
+                    currentSQLiteTable.value = tableName
+                } catch (e) {
+                    sqliteError.value = '读取表失败: ' + (e.message || e)
+                }
+            }
+
+            const toggleFullscreen = () => {
+                isPreviewFullscreen.value = !isPreviewFullscreen.value
+            }
+
+            const downloadFile = async () => {
+                if (!selectedItem.value) return
+                const formData = new URLSearchParams()
+                formData.append('path', selectedItem.value.path)
+                const result = await safeFetch('/api/read', { body: formData.toString() })
+                if (result.code !== 200) {
+                    showToast('文件下载失败：' + (result?.message || '未知错误'))
+                    return
+                }
+                const data = result.data
+                if (data.type === 'text') {
+                    // fallback: 纯文本等类型，仍用 Blob 下载
+                    const content = data.content
+                    const blob = new Blob([content])
+                    const link = document.createElement('a')
+                    link.href = URL.createObjectURL(blob)
+                    link.download = selectedItem.value.name
+                    document.body.appendChild(link)
+                    link.click()
+                    document.body.removeChild(link)
+                } else {
+                    // 优先使用后端返回的 url 字段（静态直链下载）
+                    const url = data.url
+                    if (url) {
+                        const link = document.createElement('a')
+                        link.href = url
+                        link.download = selectedItem.value.name
+                        link.target = '_blank'
+                        document.body.appendChild(link)
+                        link.click()
+                        document.body.removeChild(link)
                         return
                     }
-                    window
-                        .initSqlJs({ locateFile: file => 'https://cdn.staticfile.net/sql.js/1.12.0/' + file })
-                        .then(SQL => {
-                            window._SQL = SQL
-                            resolve(SQL)
-                        })
-                        .catch(reject)
                 }
-                script.onerror = () => reject(new Error('sql.js 加载失败'))
-                document.head.appendChild(script)
+            }
+
+            const createNewFolder = () => {
+                newFolderName.value = ''
+                isCreatingFolder.value = true
+            }
+
+            const confirmCreateFolder = () => {
+                const name = newFolderName.value.trim()
+                if (!name) return
+                const path = (currentPath.value + '/' + name).replace(/\/+/g, '/').replace(/\/\$/, '')
+                const formData = new URLSearchParams()
+                formData.append('path', path)
+                safeFetch('/api/mkdir', { body: formData.toString() })
+                    .then(result => {
+                        if (result.code === 200) {
+                            showToast('新建成功', 'success')
+                            loadPath(currentPath.value)
+                            isCreatingFolder.value = false
+                        } else {
+                            showToast('新建文件夹失败：' + (result?.message || result))
+                        }
+                    })
+                    .catch(e => {
+                        showToast('新建文件夹失败：' + (e?.message || e))
+                    })
+            }
+
+            const uploadFile = () => {
+                fileInput.value.click()
+            }
+
+            const CHUNK_SIZE = 2 * 1024 * 1024 // 2MB
+            const handleFileUpload = async event => {
+                const files = event.target.files
+                if (!files || files.length === 0) return
+
+                // 大于512KB的文件才显示上传进度
+                let needProgress = false
+                for (let i = 0; i < files.length; i++) {
+                    if (files[i].size > 0.5 * 1024 * 1024) {
+                        needProgress = true
+                        break
+                    }
+                }
+
+                let totalSize = 0
+                let uploadedSize = 0
+                if (needProgress) {
+                    uploading.value = true
+                    uploadProgress.value = 0
+                    uploadStatus.value = ''
+                    for (let i = 0; i < files.length; i++) {
+                        totalSize += files[i].size
+                    }
+                }
+
+                let allSuccess = true
+                let failedFiles = []
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i]
+                    const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
+                    if (needProgress) uploadStatus.value = `正在上传：${file.name}`
+                    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+                        const start = chunkIndex * CHUNK_SIZE
+                        const end = Math.min(file.size, start + CHUNK_SIZE)
+                        const chunk = file.slice(start, end)
+
+                        const formData = new FormData()
+                        formData.append('file', chunk)
+                        formData.append('filename', file.name)
+                        formData.append('path', currentPath.value)
+                        formData.append('chunkIndex', chunkIndex)
+                        formData.append('totalChunks', totalChunks)
+                        formData.append('isFirst', chunkIndex === 0 ? '1' : '0')
+                        formData.append('isLast', chunkIndex === totalChunks - 1 ? '1' : '0')
+
+                        try {
+                            const res = await fetch('/api/upload', {
+                                method: 'POST',
+                                body: formData
+                            })
+                            if (!res.ok) throw new Error(`Failed to upload chunk ${chunkIndex + 1}/${totalChunks} of ${file.name}`)
+                        } catch (e) {
+                            allSuccess = false
+                            failedFiles.push(file.name)
+                            showToast(`上传失败：${file.name} - ${e?.message || e}`, 'error')
+                            if (needProgress) {
+                                uploading.value = false
+                                uploadStatus.value = '上传失败'
+                            }
+                            // 拖放上传无 input，需判断
+                            if (event.target && event.target.value !== undefined) event.target.value = ''
+                            break
+                        }
+                        // 更新进度
+                        if (needProgress) {
+                            uploadedSize += chunk.size
+                            let percent = Math.floor((uploadedSize / totalSize) * 100)
+                            if (percent > 100) percent = 100
+                            uploadProgress.value = percent
+                        }
+                    }
+                }
+
+                if (needProgress) {
+                    uploadStatus.value = '上传完成'
+                    uploadProgress.value = 100
+                    setTimeout(() => {
+                        uploading.value = false
+                    }, 800)
+                }
+
+                // 刷新文件列表
+                await loadPath(currentPath.value)
+                // 拖放上传无 input，需判断
+                if (event.target && event.target.value !== undefined) event.target.value = ''
+
+                // 成功/失败 toast
+                if (allSuccess) {
+                    showToast('上传成功', 'success')
+                } else if (failedFiles.length < files.length) {
+                    showToast('部分文件上传失败', 'error')
+                }
+            }
+
+            const copyPath = async () => {
+                const text = selectedItem.value ? selectedItem.value.path : currentPath.value
+                const textarea = document.createElement('textarea')
+                textarea.value = text
+                document.body.appendChild(textarea)
+                textarea.select()
+                try {
+                    document.execCommand('copy')
+                    showToast('复制路径成功', 'success')
+                } catch (err) {
+                    showToast(err?.message || '复制失败', 'error')
+                }
+                document.body.removeChild(textarea)
+            }
+
+            const renameItem = item => {
+                itemToRename.value = item || selectedItem.value
+                if (!itemToRename.value) return
+                newItemName.value = itemToRename.value.name
+                isRenamingItem.value = true
+            }
+
+            // 项目重命名功能
+            const confirmRename = async () => {
+                if (!itemToRename.value || !newItemName.value.trim() || newItemName.value.trim() === itemToRename.value.name) {
+                    isRenamingItem.value = false
+                    return
+                }
+
+                const oldPath = itemToRename.value.path
+                const newPath = oldPath.substring(0, oldPath.lastIndexOf('/') + 1) + newItemName.value.trim()
+
+                try {
+                    const formData = new URLSearchParams()
+                    formData.append('src', oldPath)
+                    formData.append('dest', newPath)
+                    formData.append('rename', 'true') // 标记为重命名操作
+                    const result = await safeFetch('/api/mv', { body: formData.toString() })
+                    if (result.code !== 200) {
+                        showToast('重命名失败：' + (result?.message || result))
+                    } else {
+                        showToast('重命名成功', 'success')
+                        await loadPath(currentPath.value)
+                    }
+                } catch (e) {}
+
+                isRenamingItem.value = false
+                itemToRename.value = null
+                newItemName.value = ''
+            }
+
+            // 删除文件/文件夹，弹出确认框
+            const deleteItem = item => {
+                itemToDelete.value = item || selectedItem.value
+                if (!itemToDelete.value) return
+                isDeletingItem.value = true
+            }
+
+            // 确认删除
+            const confirmDelete = async () => {
+                if (!itemToDelete.value) {
+                    isDeletingItem.value = false
+                    return
+                }
+
+                try {
+                    const formData = new URLSearchParams()
+                    formData.append('path', itemToDelete.value.path)
+                    const result = await safeFetch('/api/rm', { body: formData.toString() })
+                    if (result.code !== 200) {
+                        showToast('删除失败：' + (result?.message || result))
+                    } else {
+                        showToast('删除成功', 'success')
+                        await loadPath(currentPath.value)
+                        if (selectedItem.value && selectedItem.value.path === itemToDelete.value.path) {
+                            selectedItem.value = null
+                            isPreviewing.value = false
+                        }
+                    }
+                } catch (e) {
+                } finally {
+                    isDeletingItem.value = false
+                    itemToDelete.value = null
+                }
+            }
+
+            const showContextMenu = (event, item) => {
+                const isFile = !item.isFolder
+                const isWriteableFolder = item.isFolder && isWriteable.value
+
+                if (!isFile && !isWriteableFolder) {
+                    const downloadAllowed = !item.isFolder
+                    if (!downloadAllowed) return
+                }
+
+                contextMenu.value = {
+                    visible: true,
+                    x: event.clientX,
+                    y: event.clientY,
+                    item: item
+                }
+                // 先移除旧监听，避免重复
+                document.removeEventListener('click', closeContextMenu)
+                setTimeout(() => {
+                    document.addEventListener('click', closeContextMenu)
+                }, 0)
+            }
+            const closeContextMenu = () => {
+                contextMenu.value.visible = false
+                document.removeEventListener('click', closeContextMenu)
+            }
+
+            const downloadItem = item => {
+                selectItem(item)
+                downloadFile()
+            }
+
+            const initiateRename = item => {
+                renameItem(item)
+            }
+
+            const showMoveDialog = item => {
+                itemToMove.value = item
+                moveTargetPath.value = ''
+                isMovingItem.value = true
+            }
+
+            const confirmMoveItem = () => {
+                if (!itemToMove.value || !moveTargetPath.value) return
+
+                const oldPath = itemToMove.value.path
+                const newPath = moveTargetPath.value + '/' + itemToMove.value.name
+
+                itemToMove.value.path = newPath
+                itemToMove.value.modified = new Date().toISOString()
+
+                if (itemToMove.value.isFolder) {
+                    const oldFolderPath = oldPath
+                    const newFolderPath = newPath
+
+                    items.value.forEach(item => {
+                        if (item.path.startsWith(oldFolderPath + '/')) {
+                            item.path = newFolderPath + item.path.substring(oldFolderPath.length)
+                        }
+                    })
+
+                    allFolders.value = items.value.filter(item => item.isFolder)
+                }
+
+                isMovingItem.value = false
+            }
+
+            const fileInput = ref(null)
+
+            onMounted(() => {
+                loadShortcuts()
+                loadAppInfo()
+                document.addEventListener('keydown', e => {
+                    if (e.key === 'Escape' && contextMenu.value.visible) {
+                        contextMenu.value.visible = false
+                    }
+                })
             })
-            return window._sqlJsReady
+
+            return {
+                showToast,
+                toastVisible,
+                toastMsg,
+                toastType,
+                // State
+                items,
+                selectedItem,
+                currentPath,
+                shortcuts,
+                appInfo,
+                viewMode,
+                isPreviewing,
+                isPreviewFullscreen,
+                fileContent,
+                searchQuery,
+                newFolderName,
+                isCreatingFolder,
+                showSidebar,
+                sqliteTables,
+                sqliteColumns,
+                sqliteData,
+                currentSQLiteTable,
+                contextMenu,
+                isMovingItem,
+                itemToMove,
+                moveTargetPath,
+                allFolders,
+                fileInput,
+                isRenamingItem,
+                itemToRename,
+                newItemName,
+                showDonationPopup,
+                isDeletingItem,
+                itemToDelete,
+
+                // 拖放上传
+                dragOver,
+                onDragOver,
+                onDragLeave,
+                onDrop,
+
+                // Computed
+                pathParts,
+                filteredItems,
+                previewType,
+                previewUrl,
+                previewMediaKind,
+                sqliteTables,
+                sqliteColumns,
+                sqliteData,
+                currentSQLiteTable,
+                sqliteError,
+                showSQLiteTable,
+                isWriteable,
+
+                // Methods
+                navigateToPath,
+                navigateToRoot,
+                selectItem,
+                enterFolder,
+                navigateTo,
+                toggleViewMode,
+                sortBy,
+                sortIcon,
+                formatFileSize,
+                formatDate,
+                getFileIcon,
+                previewFile,
+                toggleFullscreen,
+                downloadFile,
+                createNewFolder,
+                confirmCreateFolder,
+                uploadFile,
+                handleFileUpload,
+                renameItem,
+                confirmRename,
+                deleteItem,
+                confirmDelete,
+                showContextMenu,
+                downloadItem,
+                initiateRename,
+                showMoveDialog,
+                confirmMoveItem,
+                closeContextMenu,
+                isRootPath,
+                goUpLevel,
+                // 上传进度
+                uploading,
+                uploadProgress,
+                uploadStatus,
+
+                refreshCurrentPath,
+                isRefreshing,
+                copyPath
+            }
         }
-    </script>
+    }).mount('#app')
+</script>
+</body>
+
+<!-- sqlite 预览懒加载，不在页面初始化时加载 sql.js -->
+<script>
+    window._sqlJsReady = null
+    window._SQL = null
+    window._loadSqlJs = function () {
+        if (window._sqlJsReady) return window._sqlJsReady
+        // 动态插入 sql.js 脚本
+        window._sqlJsReady = new Promise((resolve, reject) => {
+            const script = document.createElement('script')
+            script.src = 'https://cdn.staticfile.net/sql.js/1.12.0/sql-wasm.min.js'
+            script.onload = () => {
+                if (!window.initSqlJs) {
+                    reject(new Error('sql.js 加载失败'))
+                    return
+                }
+                window
+                    .initSqlJs({ locateFile: file => 'https://cdn.staticfile.net/sql.js/1.12.0/' + file })
+                    .then(SQL => {
+                        window._SQL = SQL
+                        resolve(SQL)
+                    })
+                    .catch(reject)
+            }
+            script.onerror = () => reject(new Error('sql.js 加载失败'))
+            document.head.appendChild(script)
+        })
+        return window._sqlJsReady
+    }
+</script>
 </html>

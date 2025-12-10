@@ -31,24 +31,6 @@
 
 ## 快速开始
 
-#### 权限申请
-
-在项目入口模块的 `module.json5` 中申请网络权限:
-
-```json
-// modelu.json5
-"requestPermissions": [
-  {
-    "name": "ohos.permission.INTERNET"
-  },
-  {
-    "name": "ohos.permission.GET_NETWORK_INFO"
-  }
-]
-```
-
-
-
 #### 集成到项目
 
 1. **安装**
@@ -170,7 +152,7 @@ import('@cxy/sandboxfinder').then(async (ns: ESObject) => {
 
 [@仙银](https://github.com/iHongRen)
 
-鸿蒙开源作品，欢迎持续关注 [🌟Star](https://github.com/iHongRen/RefreshList) ，[💖赞助](https://ihongren.github.io/donate.html)
+鸿蒙开源作品，欢迎持续关注 [🌟Star](https://github.com/iHongRen/SandboxFinder) ，[💖赞助](https://ihongren.github.io/donate.html)
 
 1、[hpack](https://github.com/iHongRen/hpack) - 鸿蒙 HarmonyOS 一键打包上传分发测试工具。
 

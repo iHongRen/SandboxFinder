@@ -26,30 +26,10 @@
 ### 文件操作功能
 
 - **基础文件操作** - 创建、删除、重命名
-
 - **文件上传** - 支持大文件分块、批量、拖放上传
-
 - **下载** - 直链下载
 
 ## 快速开始
-
-#### 权限申请
-
-在项目入口模块的 `module.json5` 中申请网络权限:
-
-```json
-// modelu.json5
-"requestPermissions": [
-  {
-    "name": "ohos.permission.INTERNET"
-  },
-  {
-    "name": "ohos.permission.GET_NETWORK_INFO"
-  }
-]
-```
-
-
 
 #### 集成到项目
 
@@ -61,14 +41,14 @@ ohpm install @cxy/sandboxfinder
 
 或 **添加依赖**，然后同步
 
-  ```json5
+```json5
 // oh-package.json5
 {
   "dependencies": {
     "@cxy/sandboxfinder": "^1.0.4"
   }
 }
-  ```
+```
 
 2. **导入并启动**
 
@@ -102,14 +82,14 @@ onWindowStageCreate(windowStage: window.WindowStage):void {
 
    或者直接查看设备IP：设置 -> WLAN -> 已连接的WIFI详情 -> IP地址。
 
-  ```sh
+```sh
    ----------------------------------------------------------
    
    沙箱浏览器启动成功
    请浏览器访问: http://192.168.2.38:7777
    
    ----------------------------------------------------------
-  ```
+```
 
 4. 浏览器直接访问： http://192.168.2.38:7777  (换成你的IP)
 
@@ -172,7 +152,7 @@ import('@cxy/sandboxfinder').then(async (ns: ESObject) => {
 
 [@仙银](https://github.com/iHongRen)
 
-鸿蒙开源作品，欢迎持续关注 [🌟Star](https://github.com/iHongRen/RefreshList) ，[💖赞助](https://ihongren.github.io/donate.html)
+鸿蒙开源作品，欢迎持续关注 [🌟Star](https://github.com/iHongRen/SandboxFinder) ，[💖赞助](https://ihongren.github.io/donate.html)
 
 1、[hpack](https://github.com/iHongRen/hpack) - 鸿蒙 HarmonyOS 一键打包上传分发测试工具。
 

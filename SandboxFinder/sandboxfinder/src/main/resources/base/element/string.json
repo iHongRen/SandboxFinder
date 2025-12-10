@@ -5,8 +5,16 @@
       "value": "page from package"
     },
     {
+      "name": "internet",
+      "value": "允许用户能通过浏览器快速访问应用的沙箱目录文件"
+    },
+    {
+      "name": "get_network_info",
+      "value": "用于获取本机的IP地址，使得能在沙箱内开启本地服务"
+    },
+    {
       "name": "agcit_ihongren_cxy_sandboxfinder",
-      "value": "1.0.3"
+      "value": "1.0.4"
     }
   ]
 }
