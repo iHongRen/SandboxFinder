@@ -5,11 +5,11 @@
       "value": "page from package"
     },
     {
-      "name": "internet",
+      "name": "sandboxfinder_internet",
       "value": "允许用户能通过浏览器快速访问应用的沙箱目录文件"
     },
     {
-      "name": "get_network_info",
+      "name": "sandboxfinder_get_network_info",
       "value": "用于获取本机的IP地址，使得能在沙箱内开启本地服务"
     },
     {

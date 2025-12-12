@@ -99,7 +99,7 @@ export class RequestHandler {
   private async handleMultipart(data: Uint8Array, contentType: string, url: string): Promise<string | ArrayBuffer> {
 
     const boundary = this.extractBoundary(contentType);
-    const formData = await this.parseMultipartFormData(data, boundary);
+    const formData = this.parseMultipartFormData(data, boundary);
 
     // 获取文件和文件名及分块参数
     const fileData = formData.get('file') as Uint8Array;
@@ -156,8 +156,8 @@ export class RequestHandler {
     return -1;
   }
 
-  private async parseMultipartFormData(data: Uint8Array,
-    boundary: string): Promise<Map<string, string | ArrayBuffer>> {
+  private parseMultipartFormData(data: Uint8Array,
+    boundary: string): Map<string, string | ArrayBuffer> {
     const parts = this.splitMultipartData(data, boundary);
     const result = new Map<string, string | ArrayBuffer>();
 

@@ -10,11 +10,11 @@
     "requestPermissions": [
       {
         "name": "ohos.permission.INTERNET",
-        "reason": "$string:internet",
+        "reason": "$string:sandboxfinder_internet",
       },
       {
         "name": "ohos.permission.GET_NETWORK_INFO",
-        "reason": "$string:get_network_info"
+        "reason": "$string:sandboxfinder_get_network_info"
       }
     ]
   }
