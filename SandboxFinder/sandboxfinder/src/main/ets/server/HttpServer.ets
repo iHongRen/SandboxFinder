@@ -57,18 +57,23 @@ export class HttpServer {
 
   // 停止服务器
   public async stopServer(): Promise<void> {
-    try {
-      this.clients.forEach(async (client, _) => {
-        await client.close();
-      })
-      this.clients = []
-      this.tcpServer?.off('connect')
-      if (deviceInfo.sdkApiVersion >= 20) {
-        await this.tcpServer?.close()
+    if (this.tcpServer) {
+      try {
+        this.clients.forEach(async (client) => {
+          client.close();
+        })
+        this.clients = []
+        this.tcpServer.off('connect');
+        this.tcpServer.off('error');
+
+        if (deviceInfo.sdkApiVersion >= 20) {
+          await this.tcpServer.close()
+        }
+        this.tcpServer = null;
+      } catch (error) {
+        this.tcpServer = null;
       }
-    } catch (e) {
     }
-    this.tcpServer = null;
   }
 
   // 处理客户端连接
@@ -181,8 +186,8 @@ export class HttpServer {
    * 获取本地IP地址
    * @returns IP地址字符串
    */
-  protected getLocalIP(): string {
-    const localIP = '127.0.0.1'
+  private getLocalIP(): string {
+    const localIP = '127-0-0-1'.replaceAll('-', '.')
     // 模拟器直接返回固定的
     if (deviceInfo.productModel === 'emulator') {
       return localIP;
