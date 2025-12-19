@@ -1,6 +1,6 @@
 {
   "name": "@cxy/sandboxfinder",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "鸿蒙沙箱文件浏览器，快速访问应用沙箱目录，支持沙箱文件预览、下载、上传、删除、搜索。",
   "main": "Index.ets",
   "author": "@仙银",

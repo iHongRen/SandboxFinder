@@ -1,6 +1,6 @@
 # 鸿蒙沙箱浏览器 - [SandboxFinder](https://github.com/iHongRen/SandboxFinder)
 
-![Version](https://img.shields.io/badge/version-1.0.4-blue)  ![License](https://img.shields.io/badge/License-Apache%202.0-green.svg) ![GitHub Stars](https://img.shields.io/github/stars/iHongRen/SandboxFinder.svg?style=social)
+![Version](https://img.shields.io/badge/version-1.0.5-blue)  ![License](https://img.shields.io/badge/License-Apache%202.0-green.svg) ![GitHub Stars](https://img.shields.io/github/stars/iHongRen/SandboxFinder.svg?style=social)
 
 快速访问鸿蒙应用沙箱目录，支持沙箱文件预览、下载、上传、删除、搜索。
 
@@ -45,7 +45,7 @@ ohpm install @cxy/sandboxfinder
 // oh-package.json5
 {
   "dependencies": {
-    "@cxy/sandboxfinder": "^1.0.4"
+    "@cxy/sandboxfinder": "^1.0.5"
   }
 }
 ```
@@ -165,7 +165,7 @@ DevEco-Studio 打开鸿蒙工程。
 
 5、[SandboxFinder](https://github.com/iHongRen/SandboxFinder) - 鸿蒙沙箱文件浏览器，支持模拟器和真机。快速访问沙箱目录。
 
-6、[WebServer](https://github.com/iHongRen/WebServer) - 鸿蒙轻量级Web服务器框架，类 Express.js API 风格。
+6、[WebServer](https://github.com/iHongRen/WebServer) - 鸿蒙轻量级Web服务器框架，类 Express.js API 风格，支持中间件，路由，静态服务。
 
 7、[SelectableMenu](https://github.com/iHongRen/SelectableMenu) - 适用于聊天对话框中的文本选择菜单
 

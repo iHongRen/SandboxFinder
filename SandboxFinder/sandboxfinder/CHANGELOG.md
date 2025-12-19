@@ -1,31 +1,27 @@
 # 鸿蒙沙箱浏览器 - [SandboxFinder](https://github.com/iHongRen/SandboxFinder)
 
+[v1.0.5](https://github.com/iHongRen/SandboxFinder/releases/tag)
+
+- 优化服务关闭和本机IP获取
+
 [v1.0.4](https://github.com/iHongRen/SandboxFinder/releases/tag)
 
 - 修改本机IP获取方式
 
 - 优化服务关闭
 
-
-
 [v1.0.3](https://github.com/iHongRen/SandboxFinder/tags)
 
 - 优化文档
 - 去除不用的权限
 
-
-
 [v1.0.2](https://github.com/iHongRen/SandboxFinder/tags)
 
 优化文档
 
-
-
 [v1.0.1](https://github.com/iHongRen/SandboxFinder/tags)
 
-优化打印  
-
-
+优化打印
 
 [v1.0.0](https://github.com/iHongRen/SandboxFinder/tags)
 
