@@ -14,9 +14,16 @@ export class ApiHandler {
   private fileManager: FileManager;
   private serverAddress: string = '';
   private serverPort: number = 0;
+  private showSidebar: boolean = true;
+  private showAppInfo: boolean = true;
+  private showAbout: boolean = true;
 
-  constructor(fileManager: FileManager) {
+  constructor(fileManager: FileManager, showSidebar: boolean = true, showAppInfo: boolean = true,
+    showAbout: boolean = true) {
     this.fileManager = fileManager;
+    this.showSidebar = showSidebar;
+    this.showAppInfo = showAppInfo;
+    this.showAbout = showAbout;
   }
 
   setServerInfo(serverInfo: socket.NetAddress) {
@@ -25,7 +32,17 @@ export class ApiHandler {
   }
 
   async serverInfo(req: HttpRequest, res: HttpResponse): Promise<void> {
-    res.json({ code: 200, data: { address: this.serverAddress, port: this.serverPort } });
+    res.json({
+      code: 200,
+      data: {
+        address: this.serverAddress,
+        port: this.serverPort,
+        rootDir: this.fileManager.getRootDir(),
+        showSidebar: this.showSidebar,
+        showAppInfo: this.showAppInfo,
+        showAbout: this.showAbout,
+      }
+    });
   }
 
   async appInfo(req: HttpRequest, res: HttpResponse): Promise<void> {
@@ -34,11 +51,13 @@ export class ApiHandler {
   }
 
   async read(req: HttpRequest, res: HttpResponse): Promise<void> {
-    const filePath = this.getBodyParam(req, 'path');
-    if (!filePath) {
+    // 前端传相对路径，转为绝对路径操作
+    const relPath = this.getBodyParam(req, 'path');
+    if (!relPath) {
       res.status(400).json({ code: 400, message: 'Missing path' });
       return;
     }
+    const filePath = this.fileManager.toAbsPath(relPath);
 
     // 纯文本类型
     if (this.fileManager.isPlainText(filePath)) {
@@ -83,34 +102,35 @@ export class ApiHandler {
   }
 
   async ls(req: HttpRequest, res: HttpResponse): Promise<void> {
+    // 前端传相对路径，FileManager.listDir 内部会转换
     const dirPath = this.getBodyParam(req, 'path') || '/';
     const list = await this.fileManager.listDir(dirPath);
     res.json({ code: 200, data: list });
   }
 
   async touch(req: HttpRequest, res: HttpResponse): Promise<void> {
-    const filePath = this.getBodyParam(req, 'path');
-    if (!filePath) {
+    const relPath = this.getBodyParam(req, 'path');
+    if (!relPath) {
       res.status(400).json({ code: 400, message: 'Missing path' });
       return;
     }
-    await this.fileManager.writeFile(filePath, new ArrayBuffer(0));
+    await this.fileManager.writeFile(this.fileManager.toAbsPath(relPath), new ArrayBuffer(0));
     res.json({ code: 200, data: { success: true } });
   }
 
   async rm(req: HttpRequest, res: HttpResponse): Promise<void> {
-    const filePath = this.getBodyParam(req, 'path');
-    if (!filePath) {
+    const relPath = this.getBodyParam(req, 'path');
+    if (!relPath) {
       res.status(400).json({ code: 400, message: 'Missing path' });
       return;
     }
-    await this.fileManager.remove(filePath);
+    await this.fileManager.remove(this.fileManager.toAbsPath(relPath));
     res.json({ code: 200, data: { success: true } });
   }
 
   async mv(req: HttpRequest, res: HttpResponse): Promise<void> {
-    const src = this.getBodyParam(req, 'src');
-    const dest = this.getBodyParam(req, 'dest');
+    const src = this.fileManager.toAbsPath(this.getBodyParam(req, 'src'));
+    const dest = this.fileManager.toAbsPath(this.getBodyParam(req, 'dest'));
     const isRename = this.getBodyParam(req, 'rename') === 'true';
     if (!src || !dest) {
       res.status(400).json({ code: 400, message: 'Missing src or dest' });
@@ -121,8 +141,8 @@ export class ApiHandler {
   }
 
   async cp(req: HttpRequest, res: HttpResponse): Promise<void> {
-    const src = this.getBodyParam(req, 'src');
-    const dest = this.getBodyParam(req, 'dest');
+    const src = this.fileManager.toAbsPath(this.getBodyParam(req, 'src'));
+    const dest = this.fileManager.toAbsPath(this.getBodyParam(req, 'dest'));
     if (!src || !dest) {
       res.status(400).json({ code: 400, message: 'Missing src or dest' });
       return;
@@ -132,12 +152,12 @@ export class ApiHandler {
   }
 
   async mkdir(req: HttpRequest, res: HttpResponse): Promise<void> {
-    const filePath = this.getBodyParam(req, 'path');
-    if (!filePath) {
+    const relPath = this.getBodyParam(req, 'path');
+    if (!relPath) {
       res.status(400).json({ code: 400, message: 'Missing path' });
       return;
     }
-    await this.fileManager.mkdir(filePath, '');
+    await this.fileManager.mkdir(this.fileManager.toAbsPath(relPath), '');
     res.json({ code: 200, data: { success: true } });
   }
 

@@ -31,16 +31,60 @@ export class FileManager {
   private lruCache: Map<string, LRUCacheEntry> = new Map()
   private maxCacheCount = 10 // 最大缓存数
   private bundleInfo = bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT)
+  // 根目录：'/' 表示展示全部沙箱，其他值表示只暴露该目录
+  private rootDir: string
 
-  constructor(context: Context) {
+  constructor(context: Context, rootDir: string = '/') {
     this.context = context
     this.contextFilesDir = context.filesDir
     this.serverPath = context.filesDir + '/' + this.serverDir
+    // 规范化 rootDir：去掉末尾斜杠，空字符串视为 '/'
+    this.rootDir = rootDir && rootDir !== '/' ? rootDir.replace(/\/+$/, '') : '/'
     this.initServerDir()
   }
 
   public getServerPath() {
     return this.serverPath
+  }
+
+  /** 获取根目录（绝对路径） */
+  public getRootDir(): string {
+    return this.rootDir
+  }
+
+  /**
+   * 相对路径 → 绝对路径
+   * 前端传来的路径都是相对于 rootDir 的，'/' 表示 rootDir 本身。
+   */
+  public toAbsPath(relPath: string): string {
+    if (this.rootDir === '/') {
+      // 未限定根目录，路径本身就是绝对路径
+      return relPath || '/'
+    }
+    if (!relPath || relPath === '/') {
+      return this.rootDir
+    }
+    // 防止路径穿越：去掉 ..
+    const safe = relPath.replace(/\.\./g, '')
+    return this.rootDir + (safe.startsWith('/') ? safe : '/' + safe)
+  }
+
+  /**
+   * 绝对路径 → 相对路径
+   * 返回相对于 rootDir 的路径，以 '/' 开头；rootDir 本身返回 '/'。
+   */
+  public toRelPath(absPath: string): string {
+    if (this.rootDir === '/') {
+      return absPath
+    }
+    if (absPath === this.rootDir) {
+      return '/'
+    }
+    if (absPath.startsWith(this.rootDir + '/')) {
+      return absPath.substring(this.rootDir.length)
+    }
+    // 不在 rootDir 范围内，原样返回（兜底）
+    return absPath
   }
 
   private async initServerDir(): Promise<void> {
@@ -190,7 +234,7 @@ export class FileManager {
 
   async mkdir(path: string, name: string): Promise<boolean> {
     if (this.canMkdir(path)) {
-      await this.ensureDirectoryExists(path + '/' + name.trim().replace('/', ''))
+      await this.ensureDirectoryExists(path + (name ? '/' + name.trim().replace('/', '') : ''))
       return true
     }
     return false
@@ -226,40 +270,47 @@ export class FileManager {
   contextFileItem(name: string, path: string): FileItem {
     const item = new FileItem();
     item.name = name;
-    item.path = path;
+    // path 统一存相对路径
+    item.path = this.toRelPath(path);
     item.isFolder = true;
     return item
   }
 
   // 列出目录内容（ls）
+  // dirPath 为相对路径（相对于 rootDir），'/' 表示根
   public async listDir(dirPath: string): Promise<FileItem[]> {
     try {
-      if (dirPath === '' || dirPath === SandboxDir.Data) {
-        return this.getDefaultItems(['storage'], SandboxDir.Data)
+      // 将前端传来的相对路径还原为绝对路径
+      const absDir = this.toAbsPath(dirPath)
+
+      // rootDir 为 '/' 时保留原有的虚拟目录逻辑
+      if (this.rootDir === '/') {
+        if (absDir === '' || absDir === SandboxDir.Data) {
+          return this.toRelItems(this.getDefaultItems(['storage'], SandboxDir.Data))
+        }
+        if (absDir === SandboxDir.Storage) {
+          return this.toRelItems(this.getDefaultItems(['el1', 'el2'], absDir))
+        }
+        if (absDir === SandboxDir.El1 || absDir === SandboxDir.El2) {
+          return this.toRelItems(this.getDefaultItems(['base', 'database'], absDir))
+        }
+        if (absDir === '/') {
+          return this.toRelItems(this.contextDirs())
+        }
       }
 
-      if (dirPath === SandboxDir.Storage) {
-        return this.getDefaultItems(['el1', 'el2'], dirPath)
-      }
-
-      if (dirPath === SandboxDir.El1 || dirPath === SandboxDir.El2) {
-        return this.getDefaultItems(['base', 'database'], dirPath)
-      }
-
-      if (dirPath === '/') {
-        return this.contextDirs()
-      }
-
-      let filenames = await fileIo.listFile(dirPath);
-      if (dirPath === this.contextFilesDir) {
+      let filenames = await fileIo.listFile(absDir);
+      // 过滤掉内部服务器目录
+      if (absDir === this.contextFilesDir) {
         filenames = filenames.filter(e => e !== this.serverDir)
       }
       const fileInfos = await Promise.all(filenames.map(async filename => {
-        const filePath = dirPath + '/' + filename;
+        const filePath = absDir + '/' + filename;
         const stat = await fileIo.stat(filePath);
         const item = new FileItem();
         item.name = filename;
-        item.path = filePath;
+        // path 返回相对路径
+        item.path = this.toRelPath(filePath)
         item.modified = stat.mtime
         item.isFolder = stat.isDirectory();
         item.size = stat.size
@@ -271,6 +322,16 @@ export class FileManager {
     } catch (e) {
       return []
     }
+  }
+
+  /** 将 FileItem 数组中的绝对路径批量转为相对路径 */
+  private toRelItems(items: FileItem[]): FileItem[] {
+    items.forEach(item => {
+      if (item.path) {
+        item.path = this.toRelPath(item.path)
+      }
+    })
+    return items
   }
 
   // 新建空文件（touch）
@@ -382,20 +443,22 @@ export class FileManager {
     }
   }
 
-  canMkdir(path: string): boolean {
-    if (!path) {
+  canMkdir(absPath: string): boolean {
+    if (!absPath) {
       return false
     }
-
-    if (path === this.serverPath) {
+    if (absPath === this.serverPath) {
       return false
     }
-
-    if (!path.startsWith(SandboxDir.El1) && !path.startsWith(SandboxDir.El2)) {
+    // 限定了 rootDir 时，只要在 rootDir 内且不是 rootDir 本身即可
+    if (this.rootDir !== '/') {
+      return absPath.startsWith(this.rootDir + '/') || absPath === this.rootDir
+    }
+    // 未限定时沿用原有规则：只允许在 el1/el2 下操作
+    if (!absPath.startsWith(SandboxDir.El1) && !absPath.startsWith(SandboxDir.El2)) {
       return false
     }
-
-    if (path === SandboxDir.El1 || path === SandboxDir.El2) {
+    if (absPath === SandboxDir.El1 || absPath === SandboxDir.El2) {
       return false
     }
     return true

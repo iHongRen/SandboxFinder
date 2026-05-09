@@ -10,23 +10,56 @@ import { common } from "@kit.AbilityKit";
 import { socket } from "@kit.NetworkKit";
 import { HttpServer, HttpRequest, HttpResponse } from '@cxy/webserver';
 
+/**
+ * SandboxFinder 启动配置
+ */
+export interface SandboxFinderOptions {
+  /** 监听端口，默认 7777 */
+  port?: number;
+  /** 监听地址，默认自动获取本机 IP */
+  address?: string;
+  /** 根目录，默认 '/' 展示全部沙箱目录。传入具体路径则只暴露该目录，如 context.filesDir */
+  rootDir?: string;
+  /** UIAbilityContext，默认自动获取 */
+  context?: common.UIAbilityContext;
+  /** 是否显示侧边栏，默认 true。设为 false 时整个侧边栏隐藏 */
+  showSidebar?: boolean;
+  /** 是否显示侧边栏中的"应用信息"区块，默认 true */
+  showAppInfo?: boolean;
+  /** 是否显示侧边栏中的"关于"区块，默认 true */
+  showAbout?: boolean;
+}
 
 export class SandboxFinder {
   private static instance: SandboxFinder
   private server: HttpServer;
   private fileManager: FileManager
-  private port: number
-  private context: common.UIAbilityContext
+  private options: Required<SandboxFinderOptions>
 
   /**
    * 运行服务
-   * @param port  端口号，默认7777
-   * @param context UIAbilityContext
-   * @returns socket.NetAddress =》 { address: string , port: number }
+   * @param options 配置项，所有字段均可选
+   * @returns socket.NetAddress => { address: string, port: number }
+   *
+   * @example
+   * // 使用默认配置
+   * SandboxFinder.run()
+   *
+   * @example
+   * // 只暴露 filesDir，使用 8080 端口
+   * SandboxFinder.run({ port: 8080, rootDir: context.filesDir })
    */
-  static async run(port: number = 7777,
-    context: common.UIAbilityContext = getContext() as common.UIAbilityContext): Promise<socket.NetAddress> {
-    SandboxFinder.instance = new SandboxFinder(context, port)
+  static async run(options: SandboxFinderOptions = {}): Promise<socket.NetAddress> {
+    const resolved: Required<SandboxFinderOptions> = {
+      port: options.port ?? 7777,
+      address: options.address ?? '',
+      rootDir: options.rootDir ?? '/',
+      context: options.context ?? (getContext() as common.UIAbilityContext),
+      showSidebar: options.showSidebar ?? true,
+      showAppInfo: options.showAppInfo ?? true,
+      showAbout: options.showAbout ?? true,
+    }
+    SandboxFinder.instance = new SandboxFinder(resolved)
     return await SandboxFinder.instance.startServer()
   }
 
@@ -37,10 +70,9 @@ export class SandboxFinder {
     await SandboxFinder.instance.stopServer()
   }
 
-  private constructor(context: common.UIAbilityContext, port: number) {
-    this.context = context
-    this.port = port
-    this.fileManager = new FileManager(this.context)
+  private constructor(options: Required<SandboxFinderOptions>) {
+    this.options = options
+    this.fileManager = new FileManager(options.context, options.rootDir)
     this.server = new HttpServer()
   }
 
@@ -48,9 +80,9 @@ export class SandboxFinder {
   private async startServer(): Promise<socket.NetAddress> {
     this.server.cors();
     this.server.auto();
-    this.server.serveStatic(this.fileManager.getServerPath());
 
-    const apiHandler = new ApiHandler(this.fileManager);
+    const apiHandler = new ApiHandler(this.fileManager, this.options.showSidebar, this.options.showAppInfo,
+      this.options.showAbout);
 
     // API 路由
     this.server.post('/api/server-info', (req: HttpRequest, res: HttpResponse) => apiHandler.serverInfo(req, res));
@@ -68,14 +100,15 @@ export class SandboxFinder {
       try {
         const uploadedFile = req.files?.file;
         const fileName = (req.body as Record<string, string>)?.filename;
-        const path = (req.body as Record<string, string>)?.path || '';
+        const relPath = (req.body as Record<string, string>)?.path || '';
         const isFirst = (req.body as Record<string, string>)?.isFirst === '1';
 
         if (!uploadedFile || !fileName) {
           res.status(400).json({ code: 400, message: 'Missing file or filename' });
           return;
         }
-        await this.fileManager.appendFileStream(`${path}/${fileName}`,
+        const absPath = this.fileManager.toAbsPath(relPath);
+        await this.fileManager.appendFileStream(`${absPath}/${fileName}`,
           new Uint8Array(uploadedFile.data), isFirst);
         res.json({ code: 200, data: { success: true } });
       } catch (err) {
@@ -84,7 +117,10 @@ export class SandboxFinder {
       }
     });
 
-    const serverInfo = await this.server.startServer(this.port);
+    // 静态文件服务必须在 API 路由之后注册，否则会拦截 /api/* 请求并返回 404
+    this.server.serveStatic(this.fileManager.getServerPath());
+
+    const serverInfo = await this.server.startServer(this.options.port, this.options.address);
     if (serverInfo.address) {
       apiHandler.setServerInfo(serverInfo);
       this.printServerInfo(serverInfo);
