@@ -10,6 +10,7 @@ struct Index {
         .fontSize(20)
         .fontWeight(FontWeight.Bold)
         .copyOption(CopyOptions.LocalDevice)
+
     }
     .alignItems(HorizontalAlign.Start)
     .justifyContent(FlexAlign.Center)
