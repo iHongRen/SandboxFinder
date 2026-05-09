@@ -19,5 +19,7 @@
     "文件",
     "仙银"
   ],
-  "dependencies": {}
+  "dependencies": {
+    "@cxy/webserver": "^2.1.0"
+  }
 }
